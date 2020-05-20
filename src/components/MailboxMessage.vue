@@ -20,6 +20,16 @@
 				/>
 				<template v-else>
 					<SectionTitle class="app-content-list-item important" :name="t('mail', 'Important')" />
+					<Popover>
+						<Actions slot="trigger">
+							<ActionButton class="icon-info popover">{{
+								t(
+								'mail',
+								'Rreth flamurit të përbashkuar Me një dëshirë e një qëllim, Të gjith atij duke u betuar,Të lidhim besën për shpëtim. Prej lufte veç ai largohetQë është lindur tradhëtor'
+								)
+								}}</ActionButton>
+						</Actions>
+					</Popover>
 					<Mailbox
 						class="nameimportant"
 						:account="unifiedAccount"
@@ -63,6 +73,9 @@
 <script>
 import AppContent from '@nextcloud/vue/dist/Components/AppContent'
 import AppContentList from '@nextcloud/vue/dist/Components/AppContentList'
+import Popover from '@nextcloud/vue/dist/Components/Popover'
+import Actions from '@nextcloud/vue/dist/Components/Actions'
+import ActionButton from '@nextcloud/vue/dist/Components/ActionButton'
 import infiniteScroll from 'vue-infinite-scroll'
 import isMobile from '@nextcloud/vue/dist/Mixins/isMobile'
 import SectionTitle from './SectionTitle'
@@ -84,6 +97,9 @@ export default {
 	},
 	components: {
 		AppContent,
+		ActionButton,
+		Actions,
+		Popover,
 		AppContentList,
 		AppDetailsToggle,
 		Mailbox,
@@ -212,4 +228,17 @@ export default {
 }
 </script>
 
-<style scoped></style>
+<style scoped="css">
+.popover {
+	bottom: 50px;
+	left: 120px;
+	z-index: 1;
+}
+.v-popover > .trigger > {
+	border-radius: 22px;
+	background-color: var(--color-main-background);
+}
+	.icon-info {
+		background-image: var(--icon-info-000);
+	}
+</style>
