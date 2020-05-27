@@ -115,6 +115,13 @@ class Account implements JsonSerializable {
 	}
 
 	/**
+	 * @return boolean
+	 */
+	public function getSieveEnabled() {
+		return $this->account->getSieveEnabled();
+	}
+
+	/**
 	 * @deprecated use \OCA\Mail\IMAP\IMAPClientFactory instead
 	 * @return Horde_Imap_Client_Socket
 	 *
@@ -193,7 +200,7 @@ class Account implements JsonSerializable {
 	 * @param string $sslMode
 	 * @return false|string
 	 */
-	protected function convertSslMode($sslMode) {
+	public function convertSslMode($sslMode) {
 		switch ($sslMode) {
 			case 'none':
 				return false;
