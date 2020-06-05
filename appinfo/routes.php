@@ -55,6 +55,11 @@ return [
 			'verb' => 'PUT'
 		],
 		[
+			'name' => 'sieve#updateAccount',
+			'url' => '/api/sieve/{accountId}/updateAccount',
+			'verb' => 'POST'
+		],
+		[
 			'name' => 'folders#sync',
 			'url' => '/api/accounts/{accountId}/folders/{folderId}/sync',
 			'verb' => 'POST'
@@ -148,5 +153,6 @@ return [
 		'localAttachments' => ['url' => '/api/attachments'],
 		'messages' => ['url' => '/api/accounts/{accountId}/folders/{folderId}/messages'],
 		'preferences' => ['url' => '/api/preferences'],
+		'sieve' => ['url' => '/api/sieve'],
 	]
 ];

@@ -59,6 +59,9 @@ import {
 	setEnvelopeFlag,
 	syncEnvelopes,
 } from '../service/MessageService'
+import {
+	updateAccount as updateSieveAccount,
+} from '../service/SieveService'
 import logger from '../logger'
 import {normalizedEnvelopeListId} from './normalization'
 import {showNewMessagesNotification} from '../service/NotificationService'
@@ -144,6 +147,11 @@ export default {
 		return deleteAccount(account.id).catch((err) => {
 			console.error('could not delete account', err)
 			throw err
+		})
+	},
+	updateSieveAccount({commit}, data) {
+		return updateSieveAccount(data).then((data) => {
+			console.info("UpdateSieveAccount returned")
 		})
 	},
 	createFolder({commit}, {account, name}) {
