@@ -25,6 +25,7 @@ namespace OCA\Mail\Service;
 
 use Horde_Imap_Client;
 use Horde_Imap_Client_Exception;
+use Horde_Imap_Client_Exception_NoSupportExtension;
 use OCA\Mail\Account;
 use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Db\Mailbox;
@@ -44,6 +45,8 @@ use OCA\Mail\Model\IMAPMessage;
 use OCA\Mail\Sieve\SieveClientFactory;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\EventDispatcher\IEventDispatcher;
+use function array_map;
+use function array_values;
 
 class MailManager implements IMailManager {
 
@@ -319,6 +322,51 @@ class MailManager implements IMailManager {
 				$flag,
 				$value
 			)
+		);
+	}
+
+	/**
+	 * @param Account $account
+	 *
+	 * @return Quota|null
+	 * @see https://tools.ietf.org/html/rfc2087
+	 */
+	public function getQuota(Account $account): ?Quota {
+		$client = $this->imapClientFactory->getClient($account);
+
+		/**
+		 * Get all the quotas roots of the user's mailboxes
+		 */
+		try {
+			$quotas = array_map(static function (Folder $mb) use ($client) {
+				return $client->getQuotaRoot($mb->getMailbox());
+			}, $this->folderMapper->getFolders($account, $client));
+		} catch (Horde_Imap_Client_Exception_NoSupportExtension $ex) {
+			return null;
+		}
+
+		/**
+		 * Extract the 'storage' quota
+		 *
+		 * Falls back to 0/0 if this quota has no storage information
+		 *
+		 * @see https://tools.ietf.org/html/rfc2087#section-3
+		 */
+		$storageQuotas = array_map(function (array $root) {
+			return $root['storage'] ?? [
+				'usage' => 0,
+				'limit' => 0,
+			];
+		}, array_merge(...array_values($quotas)));
+
+		/**
+		 * Deduplicate identical quota roots
+		 */
+		$storage = array_merge(...array_values($storageQuotas));
+
+		return new Quota(
+			1024 * (int)($storage['usage'] ?? 0),
+			1024 * (int)($storage['limit'] ?? 0)
 		);
 	}
 }
