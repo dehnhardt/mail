@@ -28,7 +28,7 @@
 					/>
 				</div>
 			</div>
-			<div>
+			<div v-if="account !== undefined">
 				<SieveAccountForm :account="account" />
 			</div>
 		</AppContent>
