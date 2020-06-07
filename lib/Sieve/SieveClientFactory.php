@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace OCA\Mail\Sieve;
 
-use Horde_Imap_Client_Socket;
 use Horde\ManageSieve;
+use Horde\ManageSieve\Exception;
+use Horde\Socket\Client\Exception as SocketException;
 use OCA\Mail\Account;
-use OCA\Mail\Cache\Cache;
-use OCA\Mail\Db\MailAccount;
+use OCA\Mail\Exception\ServiceException;
 use OCA\Mail\IMAP\IMAPClientFactory;
 use OCP\IConfig;
 use OCP\ILogger;
@@ -62,28 +62,39 @@ class SieveClientFactory {
 
 	/**
 	 * @param Account $account
+	 * @param array|null $params
 	 * @return ManageSieve
+	 * @throws ServiceException
 	 */
-	public function getSieveClient(Account $account): ManageSieve {
+	public function getSieveClient(Account $account, array $params = null): ManageSieve {
 		if (!isset($this->cache[$account->getId()])) {
-			$imapClient = $this->imapClientFactory->getClient($account);
-			$mailAccount = $account->getMailAccount();
-			$host = $mailAccount->getSieveHost();
-			$user = $mailAccount->getSieveUser();
-			$password = $mailAccount->getSievePassword();
-			$password = $this->crypto->decrypt($password);
-			$port = $mailAccount->getSievePort();
-			$ssl_mode = $account->convertSslMode($mailAccount->getSieveSslMode());
+			if (!isset($params)) {
+				$imapClient = $this->imapClientFactory->getClient($account);
+				$mailAccount = $account->getMailAccount();
+				$host = $mailAccount->getSieveHost();
+				$user = $mailAccount->getSieveUser();
+				$password = $mailAccount->getSievePassword();
+				$password = $this->crypto->decrypt($password);
+				$port = $mailAccount->getSievePort();
+				$ssl_mode = $account->convertSslMode($mailAccount->getSieveSslMode());
 
-			$params = [
-				'host' => $host,
-				'port' => $port,
-				'user' => $user,
-				'password' => $password,
-				'secure' => $ssl_mode,
-			];
-
-			$this->cache[$account->getId()] = new ManageSieve($params);
+				$params = [
+					'host' => $host,
+					'port' => $port,
+					'user' => $user,
+					'password' => $password,
+					'secure' => $ssl_mode,
+				];
+			}
+			try {
+				$manageSieve = new ManageSieve($params);
+				$manageSieve->setLogger($this->logger);
+				$this->cache[$account->getId()] = $manageSieve;
+			} catch (Exception $e) {
+				throw new ServiceException($e->getMessage(), $e->getCode());
+			} catch (SocketException $se) {
+				throw new ServiceException($se->getMessage(), 99);
+			}
 		}
 		return $this->cache[$account->getId()];
 	}

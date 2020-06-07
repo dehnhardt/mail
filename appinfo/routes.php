@@ -60,8 +60,8 @@ return [
 			'verb' => 'GET'
 		],
 		[
-			'name' => 'sieve#updateAccount',
-			'url' => '/api/sieve/{accountId}/updateAccount',
+			'name' => 'sieve#updateSieveAccount',
+			'url' => '/api/sieve/{accountId}/updateSieveAccount',
 			'verb' => 'POST'
 		],
 		[

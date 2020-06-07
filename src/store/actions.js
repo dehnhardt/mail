@@ -59,9 +59,7 @@ import {
 	setEnvelopeFlag,
 	syncEnvelopes,
 } from '../service/MessageService'
-import {
-	updateAccount as updateSieveAccount,
-} from '../service/SieveService'
+import {updateSieveAccount} from '../service/SieveService'
 import logger from '../logger'
 import {normalizedEnvelopeListId} from './normalization'
 import {showNewMessagesNotification} from '../service/NotificationService'
@@ -151,7 +149,7 @@ export default {
 	},
 	updateSieveAccount({commit}, data) {
 		return updateSieveAccount(data).then((data) => {
-			console.info("UpdateSieveAccount returned")
+			console.info('UpdateSieveAccount returned')
 		})
 	},
 	createFolder({commit}, {account, name}) {
