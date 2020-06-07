@@ -26,9 +26,9 @@
 					{{ t('mail', 'Enabled') }}
 				</label>
 			</div>
-			<template v-if="sieveAccount.sieveEnabled === '1'">
-				<label for="sieve-host">{{ t('mail', 'Sieve Host') }}</label>
-				<input id="sieve-host" v-model="sieveAccount.sieveHost" type="text" required />
+			<template :disabled="controlsDisabled">
+				<label for="sieve-host" :disabled="controlsDisabled">{{ t('mail', 'Sieve Host') }}</label>
+				<input id="sieve-host" v-model="sieveAccount.sieveHost" type="text" :disabled="controlsDisabled" required />
 				<h4>{{ t('mail', 'Sieve Security') }}</h4>
 				<div class="flex-row">
 					<input
@@ -36,13 +36,14 @@
 						v-model="sieveAccount.sieveSslMode"
 						type="radio"
 						name="sieve-sec"
-						:disabled="loading"
+						:disabled="controlsDisabled"
 						value="none"
 						@change="onSieveSslModeChange"
 					/>
 					<label
 						class="button"
 						for="sieve-sec-none"
+						:disabled="controlsDisabled" 
 						:class="{primary: sieveAccount.sieveSslMode === 'none'}"
 						>{{ t('mail', 'None') }}</label
 					>
@@ -51,10 +52,10 @@
 						v-model="sieveAccount.sieveSslMode"
 						type="radio"
 						name="sieve-sec"
-						:disabled="loading"
+						:disabled="controlsDisabled"
 						value="ssl"
 					/>
-					<label class="button" for="sieve-sec-ssl" :class="{primary: sieveAccount.sieveSslMode === 'ssl'}">
+					<label class="button" for="sieve-sec-ssl" :class="{primary: sieveAccount.sieveSslMode === 'ssl'}" :disabled="controlsDisabled">
 						{{ t('mail', 'SSL/TLS') }}
 					</label>
 					<input
@@ -62,25 +63,25 @@
 						v-model="sieveAccount.sieveSslMode"
 						type="radio"
 						name="sieve-sec"
-						:disabled="loading"
+						:disabled="controlsDisabled"
 						value="tls"
 						@change="onSieveSslModeChange"
 					/>
-					<label class="button" for="sieve-sec-tls" :class="{primary: sieveAccount.sieveSslMode === 'tls'}">
+					<label class="button" for="sieve-sec-tls" :class="{primary: sieveAccount.sieveSslMode === 'tls'}" :disabled="controlsDisabled">
 						{{ t('mail', 'STARTTLS') }}
 					</label>
 				</div>
-				<label for="sieve-port">{{ t('mail', 'Sieve Port') }}</label>
-				<input id="sieve-port" v-model="sieveAccount.sievePort" type="text" required />
-				<label for="sieve-user">{{ t('mail', 'Sieve User') }}</label>
-				<input id="sieve-user" v-model="sieveAccount.sieveUser" type="text" required />
-				<label for="sieve-password">{{ t('mail', 'Sieve Password') }}</label>
-				<input id="sieve-password" v-model="sieveAccount.sievePassword" type="password" required />
+				<label for="sieve-port" :disabled="controlsDisabled">{{ t('mail', 'Sieve Port') }}</label>
+				<input id="sieve-port" v-model="sieveAccount.sievePort" type="text" :disabled="controlsDisabled" required />
+				<label for="sieve-user" :disabled="controlsDisabled">{{ t('mail', 'Sieve User') }}</label>
+				<input id="sieve-user" v-model="sieveAccount.sieveUser" type="text" :disabled="controlsDisabled" required />
+				<label for="sieve-password" :disabled="controlsDisabled">{{ t('mail', 'Sieve Password') }}</label>
+				<input id="sieve-password" v-model="sieveAccount.sievePassword" type="password" :disabled="controlsDisabled" required />
 				<slot name="feedback"></slot>
 				<input
 					type="submit"
 					class="primary"
-					:disabled="loading"
+					:disabled="controlsDisabled"
 					:value="submitButtonText"
 					@click.prevent="onSubmit"
 				/>
@@ -130,7 +131,9 @@ export default {
 		}
 	},
 	computed: {
-		// nothing here
+		controlsDisabled() {
+			return this.loading || (this.sieveAccount.sieveEnabled !== '1')
+		}
 	},
 	methods: {
 		onSubmit() {
@@ -147,6 +150,9 @@ export default {
 					throw error
 				})
 		},
+		onSieveSslModeChange() {
+			logger.info('onSieveSslModeChange()', {error})
+		}
 	},
 }
 </script>

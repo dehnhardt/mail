@@ -61,7 +61,7 @@ return [
 		],
 		[
 			'name' => 'sieve#updateSieveAccount',
-			'url' => '/api/sieve/{accountId}/updateSieveAccount',
+			'url' => '/api/sieve/{accountId}/account',
 			'verb' => 'POST'
 		],
 		[
