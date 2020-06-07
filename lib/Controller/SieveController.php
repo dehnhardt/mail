@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace OCA\Mail\Controller;
 
+use OCA\Mail\Exception\ServiceException;
+use OCA\Mail\Exception\ClientException;
+use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\SieveService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\JSONResponse;
@@ -31,18 +34,35 @@ use OCP\ILogger;
 
 class SieveController extends Controller {
 
+	/** @var AccountService */
+	private $accountService;
+	/** @var UserId */
+	private $currentUserId;
 	/** @var SieveService */
-	private $service;
+	private $sieveService;
 	/** @var ILogger */
 	private $logger;
 
+	/**
+	 * @param string $appName
+	 * @param IRequest $request
+	 * @param AccountService $accountService
+	 * @param string $UserId
+	 * @param SieveService $sieveService
+	 * @param ILogger $logger
+	 */
+
 	public function __construct(string $appName,
 								IRequest $request,
-								SieveService $service,
+								AccountService $accountService,
+								$UserId,
+								SieveService $sieveService,
 								ILogger $logger) {
 		parent::__construct($appName, $request);
 
-		$this->service = $service;
+		$this->accountService = $accountService;
+		$this->currentUserId = $UserId;
+		$this->sieveService = $sieveService;
 		$this->logger = $logger;
 	}
 
@@ -57,10 +77,27 @@ class SieveController extends Controller {
 	 * @param string $sieveUSer
 	 * @param string $sieveSslMode
 	 * @param string $sievePassword
+	 *
 	 * @return JSONResponse
+	 * @throws ClientException
 	 */
-	public function updateAccount(int $accountId, bool $sieveEnabled, string $sieveHost, int $sievePort, string $sieveUser, string $sieveSslMode, string $sievePassword): JSONResponse {
+	public function updateSieveAccount(int $accountId, bool $sieveEnabled, string $sieveHost, int $sievePort, string $sieveUser, string $sieveSslMode, string $sievePassword): JSONResponse {
 		$this->logger->info("update account (from SieveController");
-		return new JSONResponse($this->service->updateAccount($accountId));
+		$account = $this->accountService->find($this->currentUserId, $accountId);
+
+		$params = [
+			'host' => $sieveHost,
+			'port' => $sievePort,
+			'user' => $sieveUser,
+			'password' => $sievePassword,
+			'secure' => $sieveSslMode,
+		];
+
+		try {
+			$ret = $this->sieveService->updateSieveAccount($account, $params);
+		} catch (ServiceException $e) {
+			throw new ClientException($e->getMessage(), $e->getCode());
+		}
+		return new JSONResponse(['sieveAccountEnabled', $ret]);
 	}
 }

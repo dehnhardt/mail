@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * @author Tahaa Karim <tahaalibra@gmail.com>
+ * @author Holger Dehnhardt <holger@dehnhardt.org>
  *
  * Mail
  *
@@ -23,25 +23,70 @@ declare(strict_types=1);
 
 namespace OCA\Mail\Service;
 
+use OCA\Mail\Account;
+use OCA\Mail\Db\MailAccountMapper;
+use OCA\Mail\Exception\ServiceException;
+use OCA\Mail\Sieve\SieveClientFactory;
 use OCP\ILogger;
+use OCP\Security\ICrypto;
 
 class SieveService {
+
+	/** @var SieveClientFactory */
+	private $sieveClientFactory;
+
+	/** @var MailAccountMapper */
+	private $mapper;
+
+	/** @var ICrypto */
+	private $crypto;
 
 	/** @var ILogger */
 	private $logger;
 
-	public function __construct(ILogger $logger) {
+	/**
+	 * @param SieveClientFactory $sieveClientFactory
+	 * @param MailAccountMapper $mailAccountMapper
+	 * @param ICrypto $crypto
+	 * @param ILogger $logger
+	 */
+
+	public function __construct(SieveClientFactory $sieveClientFactory, MailAccountMapper $mailAccountMapper, ICrypto $crypto, ILogger $logger) {
+		$this->sieveClientFactory = $sieveClientFactory;
+		$this->mapper = $mailAccountMapper;
+		$this->crypto = $crypto;
 		$this->logger = $logger;
 	}
 
 	/**
-	 * @param int $accountId
-	 * @param String $currentUserId
-	 * @return Alias[]
+	 * @param Account $account
+	 * @param array $sieveParams
+	 *
+	 * @return bool
+	 * @throws ServiceException
 	 */
-	public function updateAccount(int $accountId): bool{
-		$this->logger->info('updateAccount from SieveService');
+	public function updateSieveAccount(Account $account, array $sieveParams): bool {
+		$this->logger->info('updateSieveAccount from SieveService');
+		/* Try to establish a sieve connection and save the entered values only if successful */
+		try {
+			$sieveClient = $this->sieveClientFactory->getSieveClient($account, $sieveParams);
+		} catch (ServiceException $e) {
+			throw $e;
+		} catch (\Throwable $throwable) {
+			throw new ServiceException($throwable->getMessage());
+		}
+		$mailAccount = $account->getMailAccount();
+		$mailAccount->setSieveUser($sieveParams['user']);
+		$mailAccount->setSievePassword($this->crypto->encrypt($sieveParams['password']));
+		$mailAccount->setSieveHost($sieveParams['host']);
+		$mailAccount->setSievePort($sieveParams['port']);
+		$mailAccount->setSieveSslMode($sieveParams['secure']);
+		$mailAccount->setSieveEnabled(true);
+		try {
+			$this->mapper->save($mailAccount);
+		} catch (\Throwable $throwable) {
+			throw new ServiceException($throwable->getMessage());
+		}
 		return true;
 	}
-
 }
