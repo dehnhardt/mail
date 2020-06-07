@@ -25,6 +25,7 @@ namespace OCA\Mail\Sieve;
 
 use Horde\ManageSieve;
 use Horde\ManageSieve\Exception;
+use Horde\ManageSieve\Exception\ConnectionFailed;
 use Horde\Socket\Client\Exception as SocketException;
 use OCA\Mail\Account;
 use OCA\Mail\Exception\ServiceException;
@@ -90,10 +91,12 @@ class SieveClientFactory {
 				$manageSieve = new ManageSieve($params);
 				$manageSieve->setLogger($this->logger);
 				$this->cache[$account->getId()] = $manageSieve;
-			} catch (Exception $e) {
-				throw new ServiceException($e->getMessage(), $e->getCode());
 			} catch (SocketException $se) {
 				throw new ServiceException($se->getMessage(), 99);
+			} catch (ConnectionFailed $e){
+				throw new ServiceException($e->getMessage(), $e->getCode());
+			} catch (Exception $e) {
+				throw new ServiceException($e->getMessage(), $e->getCode());
 			}
 		}
 		return $this->cache[$account->getId()];

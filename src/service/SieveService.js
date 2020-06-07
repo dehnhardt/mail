@@ -23,7 +23,7 @@ import {generateUrl} from '@nextcloud/router'
 import HttpClient from '@nextcloud/axios'
 
 export const updateSieveAccount = (data) => {
-	const url = generateUrl('/apps/mail/api/sieve/{id}/updateSieveAccount', {
+	const url = generateUrl('/apps/mail/api/sieve/{id}/account', {
 		id: data.accountId,
 	})
 	return HttpClient.post(url, data)
