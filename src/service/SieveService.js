@@ -20,19 +20,12 @@
  */
 
 import {generateUrl} from '@nextcloud/router'
-import HttpClient from '@nextcloud/axios'
+import Axios from '@nextcloud/axios'
 
 export const updateSieveAccount = (data) => {
 	const url = generateUrl('/apps/mail/api/sieve/{id}/account', {
 		id: data.accountId,
 	})
-	return HttpClient.post(url, data)
-		.then((resp) => resp.data)
-		.catch((e) => {
-			if (e.response && e.response.status === 400) {
-				throw e.response.data
-			}
 
-			throw e
-		})
+	return Axios.put(url, data).then((resp) => resp.data)
 }

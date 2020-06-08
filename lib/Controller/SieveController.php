@@ -95,9 +95,14 @@ class SieveController extends Controller {
 
 		try {
 			$ret = $this->sieveService->updateSieveAccount($account, $params);
+			$message = "account modified successfully";
 		} catch (ServiceException $e) {
-			throw new ClientException($e->getMessage(), $e->getCode());
+			$ret = false;
+			$message = $e->getMessage();
 		}
-		return new JSONResponse(['sieveAccountEnabled', $ret]);
+		return new JSONResponse(
+			['sieveEnabled' => $ret,
+				'message' => $message]
+		);
 	}
 }

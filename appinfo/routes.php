@@ -62,7 +62,7 @@ return [
 		[
 			'name' => 'sieve#updateSieveAccount',
 			'url' => '/api/sieve/{accountId}/account',
-			'verb' => 'POST'
+			'verb' => 'PUT'
 		],
 		[
 			'name' => 'folders#sync',

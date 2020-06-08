@@ -84,7 +84,8 @@ export default {
 	toggleAccountCollapsed(state, accountId) {
 		state.accounts[accountId].collapsed = !state.accounts[accountId].collapsed
 	},
-	setSieveEnabled(state, {account, sieveEnabled}) {
+	setSieveStatus(state, {account, sieveEnabled}) {
+		console.info('Update sieve state')
 		Vue.set(account, 'sieveEnabled', sieveEnabled)
 	},
 	addFolder(state, {account, folder}) {
