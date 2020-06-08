@@ -147,10 +147,18 @@ export default {
 			throw err
 		})
 	},
-	updateSieveAccount({commit}, data) {
-		return updateSieveAccount(data).then((data) => {
-			console.info('UpdateSieveAccount returned')
-		})
+	updateSieveAccount({commit}, account) {
+		return updateSieveAccount(account)
+			.then((data) => {
+				console.info('UpdateSieveAccount returned')
+				commit('setSieveStatus', {account, sieveEnabled: data.sieveEnabled})
+				return data
+			})
+			.catch((err) => {
+				console.info('UpdateSieveAccount errored')
+				commit('setSieveStatus', {account, sieveEnabled: false})
+				throw err
+			})
 	},
 	createFolder({commit}, {account, name}) {
 		return createFolder(account.id, name).then((folder) => {

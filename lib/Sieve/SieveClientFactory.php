@@ -63,7 +63,7 @@ class SieveClientFactory {
 
 	/**
 	 * @param Account $account
-	 * @param array|null $params
+	 * @param array $params
 	 * @return ManageSieve
 	 * @throws ServiceException
 	 */
@@ -92,11 +92,11 @@ class SieveClientFactory {
 				$manageSieve->setLogger($this->logger);
 				$this->cache[$account->getId()] = $manageSieve;
 			} catch (SocketException $se) {
-				throw new ServiceException($se->getMessage(), 99);
-			} catch (ConnectionFailed $e){
-				throw new ServiceException($e->getMessage(), $e->getCode());
+				throw new ServiceException($se->getMessage(), 10);
+			} catch (ConnectionFailed $e) {
+				throw new ServiceException($e->getMessage(), 11);
 			} catch (Exception $e) {
-				throw new ServiceException($e->getMessage(), $e->getCode());
+				throw new ServiceException($e->getMessage(), 12);
 			}
 		}
 		return $this->cache[$account->getId()];

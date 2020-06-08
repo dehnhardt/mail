@@ -2,6 +2,7 @@
 	<div class="section">
 		<form id="sieve-form">
 			<h2>{{ t('mail', 'Sieve Account') }}</h2>
+			<label :class="{error: sieveAccount.error === '1'}">{{ sieveAccount.errorText }}</label>
 			<div class="flex-row">
 				<input
 					id="sieve-disabled"
@@ -28,7 +29,13 @@
 			</div>
 			<template :disabled="controlsDisabled">
 				<label for="sieve-host" :disabled="controlsDisabled">{{ t('mail', 'Sieve Host') }}</label>
-				<input id="sieve-host" v-model="sieveAccount.sieveHost" type="text" :disabled="controlsDisabled" required />
+				<input
+					id="sieve-host"
+					v-model="sieveAccount.sieveHost"
+					type="text"
+					:disabled="controlsDisabled"
+					required
+				/>
 				<h4>{{ t('mail', 'Sieve Security') }}</h4>
 				<div class="flex-row">
 					<input
@@ -43,7 +50,7 @@
 					<label
 						class="button"
 						for="sieve-sec-none"
-						:disabled="controlsDisabled" 
+						:disabled="controlsDisabled"
 						:class="{primary: sieveAccount.sieveSslMode === 'none'}"
 						>{{ t('mail', 'None') }}</label
 					>
@@ -55,7 +62,12 @@
 						:disabled="controlsDisabled"
 						value="ssl"
 					/>
-					<label class="button" for="sieve-sec-ssl" :class="{primary: sieveAccount.sieveSslMode === 'ssl'}" :disabled="controlsDisabled">
+					<label
+						class="button"
+						for="sieve-sec-ssl"
+						:class="{primary: sieveAccount.sieveSslMode === 'ssl'}"
+						:disabled="controlsDisabled"
+					>
 						{{ t('mail', 'SSL/TLS') }}
 					</label>
 					<input
@@ -67,16 +79,39 @@
 						value="tls"
 						@change="onSieveSslModeChange"
 					/>
-					<label class="button" for="sieve-sec-tls" :class="{primary: sieveAccount.sieveSslMode === 'tls'}" :disabled="controlsDisabled">
+					<label
+						class="button"
+						for="sieve-sec-tls"
+						:class="{primary: sieveAccount.sieveSslMode === 'tls'}"
+						:disabled="controlsDisabled"
+					>
 						{{ t('mail', 'STARTTLS') }}
 					</label>
 				</div>
 				<label for="sieve-port" :disabled="controlsDisabled">{{ t('mail', 'Sieve Port') }}</label>
-				<input id="sieve-port" v-model="sieveAccount.sievePort" type="text" :disabled="controlsDisabled" required />
+				<input
+					id="sieve-port"
+					v-model="sieveAccount.sievePort"
+					type="text"
+					:disabled="controlsDisabled"
+					required
+				/>
 				<label for="sieve-user" :disabled="controlsDisabled">{{ t('mail', 'Sieve User') }}</label>
-				<input id="sieve-user" v-model="sieveAccount.sieveUser" type="text" :disabled="controlsDisabled" required />
+				<input
+					id="sieve-user"
+					v-model="sieveAccount.sieveUser"
+					type="text"
+					:disabled="controlsDisabled"
+					required
+				/>
 				<label for="sieve-password" :disabled="controlsDisabled">{{ t('mail', 'Sieve Password') }}</label>
-				<input id="sieve-password" v-model="sieveAccount.sievePassword" type="password" :disabled="controlsDisabled" required />
+				<input
+					id="sieve-password"
+					v-model="sieveAccount.sievePassword"
+					type="password"
+					:disabled="controlsDisabled"
+					required
+				/>
 				<slot name="feedback"></slot>
 				<input
 					type="submit"
@@ -125,6 +160,8 @@ export default {
 					: '',
 				sieveSslMode: this.account.sieveSslMode ? this.account.sieveSslMode : 'none',
 				sievePassword: '',
+				errorText: '',
+				error: '0',
 			},
 			loading: false,
 			submitButtonText: this.account ? t('mail', 'Save') : t('mail', 'Connect'),
@@ -132,27 +169,30 @@ export default {
 	},
 	computed: {
 		controlsDisabled() {
-			return this.loading || (this.sieveAccount.sieveEnabled !== '1')
-		}
+			return this.loading || this.sieveAccount.sieveEnabled !== '1'
+		},
 	},
 	methods: {
-		onSubmit() {
-			logger.info('Submit sieve account');
-			this.loading = true;
-			return this.$store
-				.dispatch('updateSieveAccount', {...this.sieveAccount} )
-				.then(() => {
-					this.loading = false
-				})
-				.catch((error) => {
-					logger.error('sieve account update failed:', {error})
-					this.loading = false
-					throw error
-				})
+		async onSubmit() {
+			try {
+				logger.info('Submit sieve account')
+				this.loading = true
+				const ret = await this.$store.dispatch('updateSieveAccount', {...this.sieveAccount})
+				this.sieveAccount.errorText = ret.message
+				this.sieveAccount.sieveEnabled = ret.sieveEnabled ? '1' : '0'
+				this.sieveAccount.error = ret.sieveEnabled ? '0' : '1'
+			} catch (error) {
+				// logger.error('sieve account update failed:', {error})
+				this.sieveAccount.errorText = error.message
+				this.sieveAccount.sieveEnabled = '0'
+				this.sieveAccount.error = '1'
+			} finally {
+				this.loading = false
+			}
 		},
 		onSieveSslModeChange() {
-			logger.info('onSieveSslModeChange()', {error})
-		}
+			logger.info('onSieveSslModeChange()')
+		},
 	},
 }
 </script>
@@ -183,6 +223,10 @@ label.button {
 	display: inline-block;
 	text-align: center;
 	flex-grow: 1;
+}
+
+label.error {
+	color: red;
 }
 
 input[type='radio'] {

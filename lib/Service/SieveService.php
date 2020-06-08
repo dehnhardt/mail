@@ -71,8 +71,12 @@ class SieveService {
 		try {
 			$sieveClient = $this->sieveClientFactory->getSieveClient($account, $sieveParams);
 		} catch (ServiceException $e) {
+			// Disable sieve account if an error occurs
+			$this->disableSieveAccount($account);
 			throw $e;
 		} catch (\Throwable $throwable) {
+			// Disable sieve account if an error occurs
+			$this->disableSieveAccount($account);
 			throw new ServiceException($throwable->getMessage());
 		}
 		$mailAccount = $account->getMailAccount();
@@ -88,5 +92,15 @@ class SieveService {
 			throw new ServiceException($throwable->getMessage());
 		}
 		return true;
+	}
+
+	/**
+	 * @param Account $account
+	 *
+	 */
+	private function disableSieveAccount(Account $account) {
+		$mailAccount = $account->getMailAccount();
+		$mailAccount->setSieveEnabled(false);
+		$updated=$this->mapper->save($mailAccount);
 	}
 }
