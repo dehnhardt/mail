@@ -342,6 +342,12 @@
 .icon-trash {
 	@include icon-color('trash', 'mail', $color-black);
 }
+.icon-filter {
+	@include icon-color('filter', 'mail', $color-black);
+}
+.icon-filterset {
+	@include icon-color('filterset', 'mail', $color-black);
+}
 
 @include icon-black-white('reply', 'mail', 1);
 @include icon-black-white('reply-all', 'mail', 1);

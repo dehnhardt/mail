@@ -27,8 +27,10 @@ use OCA\Mail\Account;
 use OCA\Mail\Db\MailAccountMapper;
 use OCA\Mail\Exception\ServiceException;
 use OCA\Mail\Sieve\SieveClientFactory;
+use OCA\Mail\Sieve\SieveParser;
 use OCP\ILogger;
 use OCP\Security\ICrypto;
+
 
 class SieveService {
 
@@ -41,20 +43,25 @@ class SieveService {
 	/** @var ICrypto */
 	private $crypto;
 
+	/** @var SieveParser */
+	private $sieveParser;
+
 	/** @var ILogger */
 	private $logger;
 
 	/**
 	 * @param SieveClientFactory $sieveClientFactory
 	 * @param MailAccountMapper $mailAccountMapper
+	 * @param SieveParser $sieveParser
 	 * @param ICrypto $crypto
 	 * @param ILogger $logger
 	 */
 
-	public function __construct(SieveClientFactory $sieveClientFactory, MailAccountMapper $mailAccountMapper, ICrypto $crypto, ILogger $logger) {
+	public function __construct(SieveClientFactory $sieveClientFactory, MailAccountMapper $mailAccountMapper, SieveParser $sieveParser, ICrypto $crypto, ILogger $logger) {
 		$this->sieveClientFactory = $sieveClientFactory;
 		$this->mapper = $mailAccountMapper;
 		$this->crypto = $crypto;
+		$this->sieveParser = $sieveParser;
 		$this->logger = $logger;
 	}
 
@@ -92,6 +99,32 @@ class SieveService {
 			throw new ServiceException($throwable->getMessage());
 		}
 		return true;
+	}
+
+	/**
+	 * @param Account $account
+	 *
+	 * @return object
+	 */
+	public function listScripts(Account $account) : array{
+		$sieveClient = $this->sieveClientFactory->getSieveClient($account);
+		$scripts = $sieveClient->listScripts();
+		$activeScript = $sieveClient->getActive();
+		$scriptContent = $this->getScriptContent($account, $activeScript);
+		return ["scripts" => $scripts, "activeScript" => $activeScript, "scriptContent" => $scriptContent];
+	}
+
+	/**
+	 * @param Account $account
+	 * @param string $scriptName
+	 *
+	 * @return array
+	 */
+	public function getScriptContent(Account $account, string $scriptName) : array{
+		$sieveClient = $this->sieveClientFactory->getSieveClient($account);
+		$scriptContent = $sieveClient->getScript($scriptName);
+		$parsedScript = $this->sieveParser->parse($scriptContent);
+		return $parsedScript;
 	}
 
 	/**

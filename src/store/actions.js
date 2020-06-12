@@ -59,7 +59,11 @@ import {
 	setEnvelopeFlag,
 	syncEnvelopes,
 } from '../service/MessageService'
-import {updateSieveAccount} from '../service/SieveService'
+import {
+	updateSieveAccount,
+	listScripts as listSieveScripts,
+	getScriptContent as getSieveScriptContent,
+} from '../service/SieveService'
 import logger from '../logger'
 import {normalizedEnvelopeListId} from './normalization'
 import {showNewMessagesNotification} from '../service/NotificationService'
@@ -157,6 +161,28 @@ export default {
 			.catch((err) => {
 				console.info('UpdateSieveAccount errored')
 				commit('setSieveStatus', {account, sieveEnabled: false})
+				throw err
+			})
+	},
+	listSieveScripts({commit}, accountId) {
+		return listSieveScripts(accountId)
+			.then((data) => {
+				console.info('listSieveScripts returned')
+				return data
+			})
+			.catch((err) => {
+				console.info('listSieveScripts errored')
+				throw err
+			})
+	},
+	getSieveScriptContent({commit}, {accountId, scriptName}) {
+		return getSieveScriptContent(accountId, scriptName)
+			.then((data) => {
+				console.info('getSieveScriptContent returned')
+				return data
+			})
+			.catch((err) => {
+				console.info('getSieveScriptContent errored')
 				throw err
 			})
 	},

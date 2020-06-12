@@ -42,7 +42,6 @@ use OCA\Mail\IMAP\IMAPClientFactory;
 use OCA\Mail\IMAP\MailboxSync;
 use OCA\Mail\IMAP\MessageMapper;
 use OCA\Mail\Model\IMAPMessage;
-use OCA\Mail\Sieve\SieveClientFactory;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\EventDispatcher\IEventDispatcher;
 use function array_map;
@@ -81,23 +80,18 @@ class MailManager implements IMailManager {
 	/** @var IEventDispatcher */
 	private $eventDispatcher;
 
-	/** @var SieveClientFactory */
-	private $sieveClientFactory;
-
 	public function __construct(IMAPClientFactory $imapClientFactory,
 								MailboxMapper $mailboxMapper,
 								MailboxSync $mailboxSync,
 								FolderMapper $folderMapper,
 								MessageMapper $messageMapper,
-								IEventDispatcher $eventDispatcher,
-								SieveClientFactory $sieveClientFactory) {
+								IEventDispatcher $eventDispatcher) {
 		$this->imapClientFactory = $imapClientFactory;
 		$this->mailboxMapper = $mailboxMapper;
 		$this->mailboxSync = $mailboxSync;
 		$this->folderMapper = $folderMapper;
 		$this->messageMapper = $messageMapper;
 		$this->eventDispatcher = $eventDispatcher;
-		$this->sieveClientFactory = $sieveClientFactory;
 	}
 
 	/**
