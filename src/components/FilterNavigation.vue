@@ -1,21 +1,31 @@
 <template>
 	<div class="app-content-list filter-navigation">
 		<ul id="filter-list">
-			<template v-for="rule in filterrules">
-				<AppNavigationItem :key="rule.index" :exact="true" :title="rule.name" icon="icon-filter" />
+			<template v-for="(rule, index) in filterrules">
+				<AppNavigationItem
+					:key="rule.index"
+					:to="{
+						name: 'filterRules',
+						params: {
+							accountId: account.id,
+							ruleIndex: index,
+						},
+					}"
+					:exact="true"
+					:title="rule.name"
+					icon="icon-filter"
+				/>
 			</template>
 		</ul>
 	</div>
 </template>
 
 <script>
-// import AppNavigation from '@nextcloud/vue/dist/Components/AppNavigation'
 import AppNavigationItem from '@nextcloud/vue/dist/Components/AppNavigationItem'
 
 export default {
 	name: 'FilterNavigation',
 	components: {
-		// AppNavigation,
 		AppNavigationItem,
 	},
 	props: {
