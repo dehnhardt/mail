@@ -45,6 +45,11 @@ export default new Router({
 			component: FilterSettings,
 		},
 		{
+			path: '/accounts/:accountId/filterRules/:ruleIndex',
+			name: 'filterRules',
+			component: FilterSettings,
+		},
+		{
 			path: '/keyboard-shortcuts',
 			name: 'keyboardShortcuts',
 			component: KeyboardShortcuts,

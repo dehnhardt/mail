@@ -48,6 +48,13 @@ class SieveParser {
         'deleteflag' => '',
         'removeflag' => ''];
 
+    /** @var $sieveMatchTypes */
+    private $sieveMatchTypes = [
+        ':contains',
+        ':is',
+        ':matches'
+    ];
+
     public function __construct() {
     }
 
@@ -122,14 +129,81 @@ class SieveParser {
             if( $i > 0 ){
                 $level_1['name'] = $matches[1];
                 $level_1['rule'] = $matches[2];
+                $level_1['parsedrule'] = $this->parseRuleBody($matches[2]);
             } else {
                 $level_1['name'] = "Rule " . $this->ruleNumber;
                 $level_1['rule'] = $rule;
+                $level_1['parsedrule'] = $this->parseRuleBody($rule);
             }
         } else {
             $level_1['name'] = "Rule " . $this->ruleNumber;
             $level_1['rule'] = $rule;
+            $level_1['parsedrule'] = $this->parseRuleBody($rule);
         }
         return $level_1;
+    }
+
+    private function parseRuleBody($ruleBody) : array {
+        $level_2 = [];
+        $ruleBody = trim($ruleBody);
+        //$matched = preg_match("/((if|else|elsif)[^\(]*\([^\)]*\)[^\{]*\{[^\}]*\})/m", $ruleBody, $matches );
+        $matched = preg_match_all("/((if|else|elsif)[^}]*})/m", $ruleBody, $matches );
+        if( $matched > 0 ){
+            foreach( $matches[1] as $match ) {
+                $level_2 = $this->parseSingleRuleBody($match);
+            }
+        }
+        return $level_2;
+    }
+
+    private function parseSingleRuleBody($ruleBody) : array {
+        $level_3 = [];
+        $matched = preg_match_all("/((if|else|elsif)[^{]*)/m", $ruleBody, $matches );
+        if( $matched > 0 ){
+            foreach( $matches[1] as $match) {
+                $level_3["conditions"] = $this->parseCondition($match);
+            }
+        }
+        $matched = preg_match_all("/([^;{]*;)/", $ruleBody, $matches );
+        if( $matched > 0 ){
+            foreach( $matches[1] as $match) {
+                $level_3["actions"][] = trim($match);
+            }
+        }
+        return $level_3;
+    }
+
+    private function parseCondition($condition) : array {
+        $level_4 = array();
+        $verbs = preg_split("/ +/", $condition, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $level_4['condition-verb'] = trim($verbs[0]," \t\n\r\0\x0B()");
+        if( stripos($verbs[1], "anyof") === 0 || stripos($verbs[1], "allof") === 0 ){
+            $level_4['testlist']['listtype']=trim($verbs[1]," \t\n\r\0\x0B()");
+            $matched=preg_match("/\(([^\)]*)\)/", $condition, $matches);
+            if($matched > 0){
+                $level_4['testlist']['tests'] = $this->parseConditionComparisonsList(trim($matches[1]));
+            }
+        } else {
+            unset($verbs[0]);
+            $level_4['test'] = $this->parseConditionComparisons(trim(implode(" ", $verbs)));
+        }
+        return $level_4;
+    }
+
+    private function parseConditionComparisonsList($condition) : array {
+        $level_5 = array();
+        //$conditions = preg_split("/[,]/", $condition);
+        $conditions = preg_split("/,(?=(?:[^\"\[\]]*[\"\[][^\"\]]*[\"\]])*[^\"\]]*$)/", $condition);
+        foreach($conditions as $condition ){
+            $level_5[] = $this->parseConditionComparisons(trim($condition));
+        }
+        return $level_5;
+    }
+
+    private function parseConditionComparisons($condition) : array {
+        $level_6 = array();
+        //$level_6 = preg_split("/ (?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/", $condition);
+        $level_6 = preg_split("/ (?=(?:[^\"\[\]]*[\"\[][^\"\]]*[\"\]])*[^\"\]]*$)/", $condition);
+        return $level_6;
     }
 }

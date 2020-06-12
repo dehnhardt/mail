@@ -12,7 +12,7 @@
 			</div>
 			<div id="app-content-wrapper" class="filter-content">
 				<FilterNavigation :account="account" :filterrules="filterRules" />
-				<FilterRules :filterrules="filterRules[1]" />
+				<FilterRules :filterrules="filterRules" />
 			</div>
 		</AppContent>
 	</Content>
