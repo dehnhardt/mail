@@ -99,10 +99,54 @@ class SieveController extends Controller {
 		} catch (ServiceException $e) {
 			$ret = false;
 			$message = $e->getMessage();
+		} catch (\Throwable $e ) {
+			throw new ServiceException($e->getMessage(), 0);
 		}
+
 		return new JSONResponse(
 			['sieveEnabled' => $ret,
 				'message' => $message]
 		);
 	}
+
+	/**
+	 * @NoAdminRequired
+	 * @TrapError
+	 *
+	 * @param int $accountId
+	 *
+	 * @return JSONResponse
+	 * @throws ClientException
+	 */
+	public function listScripts(int $accountId ) {
+		try{
+			$account = $this->accountService->find($this->currentUserId, $accountId);
+			$scripts = $this->sieveService->listScripts($account);
+		} catch (ServiceException $e) {
+			$message = $e->getMessage();
+		}
+		return new JSONResponse($scripts);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 * @TrapError
+	 *
+	 * @param int $accountId
+	 * @param string $scriptName
+	 *
+	 * @return JSONResponse
+	 * @throws ClientException
+	 */
+	public function getScriptContent(int $accountId, string $scriptName ) {
+		try{
+			$account = $this->accountService->find($this->currentUserId, $accountId);
+			$scriptContent = $this->sieveService->getScriptContent($account, $scriptName);
+		} catch (ServiceException $e) {
+			$message = $e->getMessage();
+		}
+		return new JSONResponse(['scriptContent' => $scriptContent]);
+	}
 }
+
+

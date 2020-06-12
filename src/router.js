@@ -3,6 +3,7 @@ import Router from 'vue-router'
 import {generateUrl} from '@nextcloud/router'
 
 const AccountSettings = () => import('./views/AccountSettings')
+const FilterSettings = () => import('./views/FilterSettings')
 const Home = () => import('./views/Home')
 const KeyboardShortcuts = () => import('./views/KeyboardShortcuts')
 const Setup = () => import('./views/Setup')
@@ -37,6 +38,11 @@ export default new Router({
 			path: '/accounts/:accountId/settings',
 			name: 'accountSettings',
 			component: AccountSettings,
+		},
+		{
+			path: '/accounts/:accountId/filterSettings',
+			name: 'filterSettings',
+			component: FilterSettings,
 		},
 		{
 			path: '/keyboard-shortcuts',

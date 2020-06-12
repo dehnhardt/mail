@@ -45,12 +45,6 @@ class CreateAccount extends Command {
 	public const ARGUMENT_SMTP_SSL_MODE = 'smtp-ssl-mode';
 	public const ARGUMENT_SMTP_USER = 'smtp-user';
 	public const ARGUMENT_SMTP_PASSWORD = 'smtp-password';
-	public const ARGUMENT_SIEVE_ENABLED = 'sieve-enabled';
-	public const ARGUMENT_SIEVE_HOST = 'sieve-host';
-	public const ARGUMENT_SIEVE_PORT = 'sieve-port';
-	public const ARGUMENT_SIEVE_SSL_MODE = 'sieve-ssl-mode';
-	public const ARGUMENT_SIEVE_USER = 'sieve-user';
-	public const ARGUMENT_SIEVE_PASSWORD = 'sieve-password';
 
 	/** @var AccountService */
 	private $accountService;
@@ -86,13 +80,6 @@ class CreateAccount extends Command {
 		$this->addArgument(self::ARGUMENT_SMTP_SSL_MODE, InputArgument::REQUIRED);
 		$this->addArgument(self::ARGUMENT_SMTP_USER, InputArgument::REQUIRED);
 		$this->addArgument(self::ARGUMENT_SMTP_PASSWORD, InputArgument::REQUIRED);
-
-		$this->addArgument(self::ARGUMENT_SIEVE_ENABLED, InputArgument::REQUIRED);
-		$this->addArgument(self::ARGUMENT_SIEVE_HOST, InputArgument::OPTIONAL);
-		$this->addArgument(self::ARGUMENT_SIEVE_PORT, InputArgument::OPTIONAL);
-		$this->addArgument(self::ARGUMENT_SIEVE_SSL_MODE, InputArgument::OPTIONAL);
-		$this->addArgument(self::ARGUMENT_SIEVE_USER, InputArgument::OPTIONAL);
-		$this->addArgument(self::ARGUMENT_SIEVE_PASSWORD, InputArgument::OPTIONAL);
 	}
 
 	/**
@@ -115,13 +102,6 @@ class CreateAccount extends Command {
 		$smtpUser = $input->getArgument(self::ARGUMENT_SMTP_USER);
 		$smtpPassword = $input->getArgument(self::ARGUMENT_SMTP_PASSWORD);
 
-		$sieveEnabled = $input->getArgument(self::ARGUMENT_SIEVE_ENABLED);
-		$sieveHost = $input->getArgument(self::ARGUMENT_SIEVE_HOST);
-		$sievePort = $input->getArgument(self::ARGUMENT_SIEVE_PORT);
-		$sieveSslMode = $input->getArgument(self::ARGUMENT_SIEVE_SSL_MODE);
-		$sieveUser = $input->getArgument(self::ARGUMENT_SIEVE_USER);
-		$sievePassword = $input->getArgument(self::ARGUMENT_SIEVE_PASSWORD);
-
 		$account = new MailAccount();
 		$account->setUserId($userId);
 		$account->setName($name);
@@ -138,14 +118,6 @@ class CreateAccount extends Command {
 		$account->setOutboundSslMode($smtpSslMode);
 		$account->setOutboundUser($smtpUser);
 		$account->setOutboundPassword($this->crypto->encrypt($smtpPassword));
-
-		if ($sieveEnabled === true) {
-			$account->setSieveHost($sieveHost);
-			$account->setSievePort($sievePort);
-			$account->setSieveSslMode($sieveSslMode);
-			$account->setSieveUser($sieveUser);
-			$account->setSievePassword($this->crypto->encrypt($sievePassword));
-		}
 
 		$this->accountService->save($account);
 

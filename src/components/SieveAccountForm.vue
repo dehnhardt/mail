@@ -122,6 +122,7 @@
 				/>
 			</template>
 		</form>
+		<button id="listScripts" @click="listScripts">ListScripts</button>
 	</div>
 </template>
 

@@ -29,3 +29,20 @@ export const updateSieveAccount = (data) => {
 
 	return Axios.put(url, data).then((resp) => resp.data)
 }
+
+export const listScripts = (accountId) => {
+	const url = generateUrl('/apps/mail/api/sieve/{id}/account', {
+		id: accountId,
+	})
+
+	return Axios.get(url).then((resp) => resp.data)
+}
+
+export const getScriptContent = (accountId, scriptName) => {
+	const url = generateUrl('/apps/mail/api/sieve/{id}/script/{scriptName}', {
+		id: accountId,
+		scriptName: scriptName,
+	})
+
+	return Axios.get(url).then((resp) => resp.data)
+}

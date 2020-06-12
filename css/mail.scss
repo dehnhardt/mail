@@ -324,6 +324,27 @@
 .icon-flagged {
 	@include icon-color('star', 'mail', $color-black);
 }
+.icon-drafts {
+	@include icon-color('drafts', 'mail', $color-black);
+}
+.icon-sent {
+	@include icon-color('sent', 'mail', $color-black);
+}
+.icon-archive {
+	@include icon-color('archive', 'mail', $color-black);
+}
+.icon-junk {
+	@include icon-color('junk', 'mail', $color-black);
+}
+.icon-trash {
+	@include icon-color('trash', 'mail', $color-black);
+}
+.icon-filter {
+	@include icon-color('filter', 'mail', $color-black);
+}
+.icon-filterset {
+	@include icon-color('filterset', 'mail', $color-black);
+}
 
 @include icon-black-white('drafts', 'mail', 1);
 @include icon-black-white('sent', 'mail', 1);

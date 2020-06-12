@@ -85,8 +85,7 @@ export default {
 		state.accounts[accountId].collapsed = !state.accounts[accountId].collapsed
 	},
 	setSieveStatus(state, {account, sieveEnabled}) {
-		console.info('Update sieve state')
-		Vue.set(account, 'sieveEnabled', sieveEnabled)
+		Vue.set(state.accounts[account.accountId], 'sieveEnabled', sieveEnabled)
 	},
 	addFolder(state, {account, folder}) {
 		// Flatten the existing ones before updating the hierarchy
