@@ -99,7 +99,7 @@ class SieveController extends Controller {
 		} catch (ServiceException $e) {
 			$ret = false;
 			$message = $e->getMessage();
-		} catch (\Throwable $e ) {
+		} catch (\Throwable $e) {
 			throw new ServiceException($e->getMessage(), 0);
 		}
 
@@ -118,8 +118,8 @@ class SieveController extends Controller {
 	 * @return JSONResponse
 	 * @throws ClientException
 	 */
-	public function listScripts(int $accountId ) {
-		try{
+	public function listScripts(int $accountId) {
+		try {
 			$account = $this->accountService->find($this->currentUserId, $accountId);
 			$scripts = $this->sieveService->listScripts($account);
 		} catch (ServiceException $e) {
@@ -138,8 +138,8 @@ class SieveController extends Controller {
 	 * @return JSONResponse
 	 * @throws ClientException
 	 */
-	public function getScriptContent(int $accountId, string $scriptName ) {
-		try{
+	public function getScriptContent(int $accountId, string $scriptName) {
+		try {
 			$account = $this->accountService->find($this->currentUserId, $accountId);
 			$scriptContent = $this->sieveService->getScriptContent($account, $scriptName);
 		} catch (ServiceException $e) {
@@ -148,5 +148,3 @@ class SieveController extends Controller {
 		return new JSONResponse(['scriptContent' => $scriptContent]);
 	}
 }
-
-

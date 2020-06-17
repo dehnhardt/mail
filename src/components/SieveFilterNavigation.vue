@@ -3,7 +3,7 @@
 		<ul id="filter-list">
 			<template v-for="(rule, index) in filterrules">
 				<AppNavigationItem
-					:key="rule.index"
+					:key="'rule_' + index"
 					:to="{
 						name: 'filterRules',
 						params: {
@@ -24,7 +24,7 @@
 import AppNavigationItem from '@nextcloud/vue/dist/Components/AppNavigationItem'
 
 export default {
-	name: 'FilterNavigation',
+	name: 'SieveFilterNavigation',
 	components: {
 		AppNavigationItem,
 	},

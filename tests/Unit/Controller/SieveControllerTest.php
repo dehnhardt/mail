@@ -31,8 +31,6 @@ use OCA\Mail\Exception\ServiceException;
 use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\SieveService;
 
-use OCP\AppFramework\Http;
-use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\ILogger;
 use OCP\IRequest;
@@ -41,59 +39,59 @@ use PHPUnit\Framework\MockObject\MockObject;
 
 class SieveControllerTest extends TestCase {
 
-    /** @var int */
-    private $accountId = 1;
+	/** @var int */
+	private $accountId = 1;
 
-    /** @var string */
+	/** @var string */
 	private $appName = 'mail';
 
-    /** @var SieveController */
-    private $controller;
+	/** @var SieveController */
+	private $controller;
 
-    /** @var AccountService|MockObject*/
-    private $accountService;
+	/** @var AccountService|MockObject*/
+	private $accountService;
 
-    /** @var SieveService|MockObject*/
-    private $sieveService;
+	/** @var SieveService|MockObject*/
+	private $sieveService;
 
-   	/** @var string */
-    private $userId = 'john';
+	/** @var string */
+	private $userId = 'john';
 
-   	/** @var IRequest|MockObject */
-    private $request;
+	/** @var IRequest|MockObject */
+	private $request;
 
-    /** @var ILogger|MockObject */
-    private $logger;
+	/** @var ILogger|MockObject */
+	private $logger;
 
-    /** @var MockObject|Account */
-    private $account;
+	/** @var MockObject|Account */
+	private $account;
 
-    protected function setUp(): void {
-        parent::setUp();
-        $this->request = $this->createMock(IRequest::class);
-        $this->accountService = $this->createMock(AccountService::class);
-        $this->sieveService = $this->createMock(SieveService::class);
-        $this->account = $this->createMock(Account::class);
-        $this->logger = $this->createMock(ILogger::class);
+	protected function setUp(): void {
+		parent::setUp();
+		$this->request = $this->createMock(IRequest::class);
+		$this->accountService = $this->createMock(AccountService::class);
+		$this->sieveService = $this->createMock(SieveService::class);
+		$this->account = $this->createMock(Account::class);
+		$this->logger = $this->createMock(ILogger::class);
 
-        $this->controller = new SieveController(
-            $this->appName,
-            $this->request,
-            $this->accountService,
-            $this->userId,
-            $this->sieveService,
-            $this->logger
-        );
-    }
+		$this->controller = new SieveController(
+			$this->appName,
+			$this->request,
+			$this->accountService,
+			$this->userId,
+			$this->sieveService,
+			$this->logger
+		);
+	}
 
-    public function testUpdateSieveAccount() {
-        $accountId = 3;
-        $sieveEnabled = true;
-        $sieveHost = 'localhost';
-        $sievePort = 1234;
-        $sieveUser = $this->userId;
-        $sieveSslMode = '';
-        $sievePassword = 'password';
+	public function testUpdateSieveAccount() {
+		$accountId = 3;
+		$sieveEnabled = true;
+		$sieveHost = 'localhost';
+		$sievePort = 1234;
+		$sieveUser = $this->userId;
+		$sieveSslMode = '';
+		$sievePassword = 'password';
 
 		$params = [
 			'host' => $sieveHost,
@@ -103,15 +101,15 @@ class SieveControllerTest extends TestCase {
 			'secure' => $sieveSslMode,
 		];
 
-        $expectedResponse = new JSONResponse(
+		$expectedResponse = new JSONResponse(
 			['sieveEnabled' => true,
 				'message' => 'account modified successfully']
 		);
-        $this->sieveService->expects($this->once())
-            ->method('updateSieveAccount')
-            ->willThrowException(new \Exception );
+		$this->sieveService->expects($this->once())
+			->method('updateSieveAccount')
+			->willThrowException(new \Exception);
 
-        $this->expectException(ServiceException::class);
-        $this->controller->updateSieveAccount($accountId, $sieveEnabled, $sieveHost, $sievePort, $sieveUser, $sieveSslMode, $sievePassword );
-    }
+		$this->expectException(ServiceException::class);
+		$this->controller->updateSieveAccount($accountId, $sieveEnabled, $sieveHost, $sievePort, $sieveUser, $sieveSslMode, $sievePassword);
+	}
 }
