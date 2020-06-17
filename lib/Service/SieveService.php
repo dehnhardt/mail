@@ -24,13 +24,12 @@ declare(strict_types=1);
 namespace OCA\Mail\Service;
 
 use OCA\Mail\Account;
+use OCA\Mail\Contracts\ISieveParser;
 use OCA\Mail\Db\MailAccountMapper;
 use OCA\Mail\Exception\ServiceException;
 use OCA\Mail\Sieve\SieveClientFactory;
-use OCA\Mail\Sieve\SieveParser;
 use OCP\ILogger;
 use OCP\Security\ICrypto;
-
 
 class SieveService {
 
@@ -43,7 +42,7 @@ class SieveService {
 	/** @var ICrypto */
 	private $crypto;
 
-	/** @var SieveParser */
+	/** @var ISieveParser */
 	private $sieveParser;
 
 	/** @var ILogger */
@@ -52,12 +51,12 @@ class SieveService {
 	/**
 	 * @param SieveClientFactory $sieveClientFactory
 	 * @param MailAccountMapper $mailAccountMapper
-	 * @param SieveParser $sieveParser
+	 * @param ISieveParser $sieveParser
 	 * @param ICrypto $crypto
 	 * @param ILogger $logger
 	 */
 
-	public function __construct(SieveClientFactory $sieveClientFactory, MailAccountMapper $mailAccountMapper, SieveParser $sieveParser, ICrypto $crypto, ILogger $logger) {
+	public function __construct(SieveClientFactory $sieveClientFactory, MailAccountMapper $mailAccountMapper, ISieveParser $sieveParser, ICrypto $crypto, ILogger $logger) {
 		$this->sieveClientFactory = $sieveClientFactory;
 		$this->mapper = $mailAccountMapper;
 		$this->crypto = $crypto;
@@ -104,14 +103,21 @@ class SieveService {
 	/**
 	 * @param Account $account
 	 *
-	 * @return object
+	 * @return array
 	 */
-	public function listScripts(Account $account) : array{
+	public function listScripts(Account $account) : array {
 		$sieveClient = $this->sieveClientFactory->getSieveClient($account);
+		$sieveExtensions = $sieveClient->getExtensions();
 		$scripts = $sieveClient->listScripts();
 		$activeScript = $sieveClient->getActive();
 		$scriptContent = $this->getScriptContent($account, $activeScript);
-		return ["scripts" => $scripts, "activeScript" => $activeScript, "scriptContent" => $scriptContent];
+		$supportedSieveStructure = $this->sieveParser->getSupportedSieveStructure($sieveExtensions);
+		return [
+			"scripts" => $scripts,
+			"activeScript" => $activeScript,
+			"scriptContent" => $scriptContent,
+			"sieveExtensions" => $sieveExtensions,
+			"supportedSieveStructure" => $supportedSieveStructure];
 	}
 
 	/**
@@ -120,7 +126,7 @@ class SieveService {
 	 *
 	 * @return array
 	 */
-	public function getScriptContent(Account $account, string $scriptName) : array{
+	public function getScriptContent(Account $account, string $scriptName) : array {
 		$sieveClient = $this->sieveClientFactory->getSieveClient($account);
 		$scriptContent = $sieveClient->getScript($scriptName);
 		$parsedScript = $this->sieveParser->parse($scriptContent);

@@ -11,8 +11,8 @@
 				<Multiselect id="filterset" v-model="selectedScript" :options="scripts" @change="loadScriptFile" />
 			</div>
 			<div id="app-content-wrapper" class="filter-content">
-				<FilterNavigation :account="account" :filterrules="filterRules" />
-				<FilterRules :filterrules="filterRules" />
+				<SieveFilterNavigation :account="account" :filterrules="filterRules" />
+				<SieveFilterRules :filterrules="filterRules" :supportedsievestructure="supportedSieveStructure" />
 			</div>
 		</AppContent>
 	</Content>
@@ -21,11 +21,11 @@
 <script>
 import AppContent from '@nextcloud/vue/dist/Components/AppContent'
 import Content from '@nextcloud/vue/dist/Components/Content'
-import Navigation from '../components/Navigation'
-import FilterNavigation from '../components/FilterNavigation'
-import FilterRules from '../components/FilterRules'
 import Logger from '../logger'
 import Multiselect from '@nextcloud/vue/dist/Components/Multiselect'
+import Navigation from '../components/Navigation'
+import SieveFilterNavigation from '../components/SieveFilterNavigation'
+import SieveFilterRules from '../components/SieveFilterRules'
 import Vue from 'vue'
 
 export default {
@@ -34,8 +34,8 @@ export default {
 		AppContent,
 		Content,
 		Navigation,
-		FilterNavigation,
-		FilterRules,
+		SieveFilterNavigation,
+		SieveFilterRules,
 		Multiselect,
 	},
 	data() {
@@ -48,6 +48,7 @@ export default {
 			scripts: Array(),
 			scriptContent: Array(),
 			filterRules: Array(),
+			supportedSieveStructure: Object(),
 		}
 	},
 	computed: {
@@ -64,6 +65,7 @@ export default {
 			this.activeScript = data.activeScript
 			this.selectedScript = data.activeScript
 			this.scriptContent = data.scriptContent
+			this.supportedSieveStructure = data.supportedSieveStructure
 			this.extractFilterRules()
 		})
 	},

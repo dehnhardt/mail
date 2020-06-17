@@ -29,6 +29,7 @@ use OCA\Mail\Contracts\IAvatarService;
 use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Contracts\IMailSearch;
 use OCA\Mail\Contracts\IMailTransmission;
+use OCA\Mail\Contracts\ISieveParser;
 use OCA\Mail\Contracts\IUserPreferences;
 use OCA\Mail\Events\BeforeMessageDeletedEvent;
 use OCA\Mail\Events\DraftSavedEvent;
@@ -55,6 +56,7 @@ use OCA\Mail\Service\MailManager;
 use OCA\Mail\Service\MailTransmission;
 use OCA\Mail\Service\Search\MailSearch;
 use OCA\Mail\Service\UserPreferenceSevice;
+use OCA\Mail\Sieve\SieveParser;
 use OCP\AppFramework\App;
 use OCP\AppFramework\IAppContainer;
 use OCP\EventDispatcher\IEventDispatcher;
@@ -80,6 +82,7 @@ class Application extends App {
 		$container->registerAlias(IMailManager::class, MailManager::class);
 		$container->registerAlias(IMailSearch::class, MailSearch::class);
 		$container->registerAlias(IMailTransmission::class, MailTransmission::class);
+		$container->registerAlias(ISieveParser::class, SieveParser::class);
 		$container->registerAlias(IUserPreferences::class, UserPreferenceSevice::class);
 
 		$container->registerService("userFolder", function () use ($container) {
