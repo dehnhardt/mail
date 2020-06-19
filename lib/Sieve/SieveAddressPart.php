@@ -23,13 +23,13 @@ namespace OCA\Mail\Sieve;
  *
  */
 
- class SieveAction extends SieveSyntaxItem {
+ class SieveAddressPart extends SieveSyntaxItem {
 
-	/** @var $parameters */
- 	public $parameters;
+	/** @var $usages */
+ 	public $usages;
 
- 	public function __construct(String $name, String $extension = '', String $parameters = '') {
+ 	public function __construct(String $name, String $extension = '', array $usages) {
  		parent::__construct($name, $extension);
- 		$this->parameters = $parameters;
+ 		$this->usages = $usages;
  	}
  }
