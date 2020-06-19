@@ -37,13 +37,21 @@ class SieveStructure {
 	/** @var $sieveOperators  */
 	public $sieveListOperators = ['allof', 'anyof'];
 
+	/** @var $sieveAddressPart  */
+	public $sieveAddressParts = [];
+
 	/** @var $sieveControls  */
 	public $sieveControls = [
 		'require', 'if', 'else', 'elseif'
 	];
 
-	/** @var $sieveComparators */
-	public $sieveComparators = [];
+	/** @var $envelopePart  */
+	public $sieveEnvelopeParts = [
+		'from', 'to'
+	];
+
+	/** @var $sieveMatchTypes */
+	public $sieveMatchTypes = [];
 
 	/** @var $headers */
 	public $headers = [
@@ -56,13 +64,13 @@ class SieveStructure {
 		'Reply-To',
 		'List-ID',
 		'Subject',
-		'...'
 	];
 
 	public function __construct() {
 		$this->createSieveTestSubjects();
 		$this->createSieveActions();
-		$this->createSieveComparators();
+		$this->createSieveMatchTypes();
+		$this->createSieveAddressParts();
 	}
 
 	/**
@@ -76,12 +84,15 @@ class SieveStructure {
 		$supportedStructure = [];
 		$supportedActions = [];
 		$supportedActions = array_filter($this->sieveActions, [ $this, "filterByExtension"]);
+		$supportedAddressParts = array_filter($this->sieveAddressParts, [$this, "filterByExtension"]);
+		$supportedMatchTypes = array_filter($this->sieveMatchTypes, [$this, "filterByExtension"]);
 		$supportedTestSubjects = array_filter($this->sieveTestSubjects, [$this, "filterByExtension"]);
-		$supportedComparators = array_filter($this->sieveComparators, [$this, "filterByExtension"]);
 		$supportedStructure['sieveListOperators'] = $this->sieveListOperators;
-		$supportedStructure['supportedTestSubjects'] = $supportedTestSubjects;
 		$supportedStructure['supportedAction'] = $supportedActions;
-		$supportedStructure['supportedComparators'] = $supportedComparators;
+		$supportedStructure['supportedAddressParts'] = $supportedAddressParts;
+		$supportedStructure['supportedMatchTypes'] = $supportedMatchTypes;
+		$supportedStructure['supportedTestSubjects'] = $supportedTestSubjects;
+		$supportedStructure['envelopeParts'] = $this->sieveEnvelopeParts;
 		$supportedStructure['headers'] = $this->headers;
 		return $supportedStructure;
 	}
@@ -97,36 +108,45 @@ class SieveStructure {
 
 	private function createSieveTestSubjects() {
 		$this->sieveTestSubjects = [
-			'address' => new SieveTestSubject('address', '', '%comparator* %addresspart %matchtype %header %keylist*'),
-			'envelope' => new SieveTestSubject('envelope', 'envelope', ''),
-			'header' => new SieveTestSubject('header', '', '%comparator %headers* %keylist*'),
-			'size' => new SieveTestSubject('size', '', '%comparator %size'),
+			'address' => new SieveTestSubject('address', '', '%comparator %?addresspart %matchtype %*headers %*keylist'),
+			'envelope' => new SieveTestSubject('envelope', 'envelope', '%comparator %?addresspart %matchtype %*envelopepart %*keylist'),
+			'exists' => new SieveTestSubject('exists', '', '%*headers'),
+			'header' => new SieveTestSubject('header', '', '%comparator %matchtype %*headers %*keylist'),
+			'size' => new SieveTestSubject('size', '', '%matchtype %size'),
 		];
 	}
 
-	private function createSieveComparators() {
-		$this->sieveComparators = [
-			':contains' => new SieveComparator(':contains', '', ['header']),
-			':is' => new SieveComparator(':is', 'envelope', ['address', 'envelope', 'header']),
-			':all' => new SieveComparator(':all', '', ['address', 'envelope', 'header']),
-			':matches' => new SieveComparator(':matches', '', ['header', 'envelope']),
-			':over' => new SieveComparator(':over', '', ['size']),
-			':under' => new SieveComparator(':under', '', ['size']),
+	private function createSieveAddressParts() {
+		$this->sieveAddressParts = [
+			':localpart' => new SieveAddressPart(':localpart', '', ['address', 'envelope']),
+			':domain' => new SieveAddressPart(':domain', '', ['address', 'envelope']),
+			':all' => new SieveAddressPart(':all', '', ['address', 'envelope']),
+		];
+	}
+
+	private function createSieveMatchTypes() {
+		$this->sieveMatchTypes = [
+			':contains' => new SieveMatchType(':contains', '', ['address', 'envelope', 'header']),
+			':is' => new SieveMatchType(':is', 'envelope', ['address', 'envelope', 'header']),
+			':matches' => new SieveMatchType(':matches', '', ['address', 'envelope', 'header']),
+			':over' => new SieveMatchType(':over', '', ['size']),
+			':under' => new SieveMatchType(':under', '', ['size']),
 		];
 	}
 
 	private function createSieveActions() {
 		$this->sieveActions =[
 			'keep' => new SieveAction('keep'),
-			'fileinto' => new SieveAction('fileinto', 'fileinto', '%folder'),
-			'redirect' => new SieveAction('redirect', '', '%folder'),
+			'fileinto' => new SieveAction('fileinto', 'fileinto', '%mailbox'),
+			'redirect' => new SieveAction('redirect', '', '%address'),
 			'discard' =>  new SieveAction('discard', '', ''),
-			'notify' => new SieveAction('notify', 'notify', '%folder'),
-			'addheader' => new SieveAction('addheader', 'editheader', '%folder'),
-			'deleteheader' => new SieveAction('deleteheader', 'editheader', '%folder'),
-			'setflag' => new SieveAction('setflag', '', '%folder'),
-			'deleteflag' => new SieveAction('deleteflag', '', '%folder'),
-			'removeflag' => new SieveAction('removeflag', '', '%folder')
+			'stop' =>  new SieveAction('stop', '', ''),
+			//'notify' => new SieveAction('notify', 'notify', '%folder'),
+			//'addheader' => new SieveAction('addheader', 'editheader', '%header'),
+			//'deleteheader' => new SieveAction('deleteheader', 'editheader', '%header'),
+			//'setflag' => new SieveAction('setflag', '', '%folder'),
+			//'deleteflag' => new SieveAction('deleteflag', '', '%folder'),
+			//'removeflag' => new SieveAction('removeflag', '', '%folder')
 		];
 	}
 }

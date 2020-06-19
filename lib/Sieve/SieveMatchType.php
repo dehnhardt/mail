@@ -23,7 +23,7 @@ namespace OCA\Mail\Sieve;
  *
  */
 
- class SieveComparator extends SieveSyntaxItem {
+ class SieveMatchType extends SieveSyntaxItem {
 
 	/** @var $usages */
  	public $usages;

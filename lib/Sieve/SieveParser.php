@@ -164,7 +164,7 @@ class SieveParser implements ISieveParser {
 		$matched = preg_match_all("/([^;{]*;)/", $ruleBody, $matches);
 		if ($matched > 0) {
 			foreach ($matches[1] as $match) {
-				$level_3["actions"][] = trim($match);
+				$level_3["actions"][] = $this->parseAction(trim($match, " ;,%*?\"\t\n\r\x0B()"));
 			}
 		}
 		return $level_3;
@@ -208,8 +208,8 @@ class SieveParser implements ISieveParser {
 				$level_6['parameters'] = $lala;
 				continue;
 			}
-			if (in_array($token, $this->sieveStructure->sieveComparators)) {
-				$level_6['sieveComparator'] = $token;
+			if (in_array($token, $this->sieveStructure->sieveMatchTypes)) {
+				$level_6['matchtype'] = $token;
 				continue;
 			}
 			$level_6[] = $token;
@@ -225,22 +225,56 @@ class SieveParser implements ISieveParser {
 		for ($i = 0; $i < count($params); ++$i) {
 			$param = $params[$i];
 			if (stripos($param, "%comparator") === 0) {
-				while (stripos($tokens[$offset], ':') === 0) {
-					$level_6['sieveComparator'][] = $tokens[$offset];
+				continue;
+				/*while (stripos($tokens[$offset], ':') === 0) {
+					$level_6['matchtype'][] = $tokens[$offset];
 					++$offset;
-				}
-			} else {
-				if (stripos($tokens[$offset], "[") === 0) {
-					$token_array = explode(' ', $tokens[$offset]);
-					array_walk($token_array, [$this, "trimArray"]);
-					$level_6[trim($param, " %*\"")] = $token_array;
-				} else {
-					$level_6[trim($param, " %*\"")][] = $tokens[$offset];
-				}
-				++$offset;
+				}*/
 			}
+
+			if (stripos($tokens[$offset], "[") === 0) {
+				$token_array = explode(' ', $tokens[$offset]);
+				array_walk($token_array, [$this, "trimArray"]);
+				$level_6[trim($param, " %*?\"")] = $token_array;
+			} else {
+				$level_6[trim($param, " %*?\"")][] = trim($tokens[$offset], " %*?\"");
+			}
+			++$offset;
 		}
 		return $level_6;
+	}
+
+	private function parseAction(string $actionString) {
+		$level_4 = [];
+		$offset = 0;
+		$tokenArray = explode(' ', $actionString);
+		array_walk($tokenArray,  [$this, "trimArray"]);
+		$action = $tokenArray[0];
+		$level_4['action'] = $action;
+		$paramlist = $this->sieveStructure->sieveActions[$action]->parameters;
+		if(sizeof($tokenArray)>1 && $paramlist != ""){
+			$level_4['parameters'] = $this->parseActionParameters($tokenArray, $paramlist, $offset);
+		}
+		return $level_4;
+	}
+
+	private function parseActionParameters($tokens, $paramlist, &$offset) : array {
+		$params = explode(' ', $paramlist);
+		$level_5 = [];
+		++$offset;
+
+		for ($i = 0; $i < count($params); ++$i) {
+			$param = $params[$i];
+			if (stripos($tokens[$offset], "[") === 0) {
+				$token_array = explode(' ', $tokens[$offset]);
+				array_walk($token_array, [$this, "trimArray"]);
+				$level_5[trim($param, " %*?\"")] = $token_array;
+			} else {
+				$level_5[trim($param, " %*?\"")][] = $tokens[$offset];
+			}
+			++$offset;
+		}
+		return $level_5;
 	}
 
 	private function trimArray(&$item, $key) {
