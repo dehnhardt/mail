@@ -1,10 +1,10 @@
 <template>
 	<div class="flex_row">
 		<div>
-			<label for="sieve-test-subject">{{ t('mail', 'Test Subject') }}</label>
+			<label :for="templateid + '-test-subject'">{{ t('mail', 'Test Subject') }}</label>
 			<div class="wrapper">
 				<Multiselect
-					id="sieve-test-subject"
+					:id="templateid + '-test-subject'"
 					v-model="test.testSubject"
 					:options="Object.keys(supportedsievestructure.supportedTestSubjects)"
 					:searchable="false"
@@ -13,10 +13,10 @@
 			</div>
 		</div>
 		<div v-if="showAddressParts">
-			<label for="sieve-addres-part">{{ t('mail', 'Addresparts') }}</label>
+			<label :for="templateid + '-addres-part'">{{ t('mail', 'Addresparts') }}</label>
 			<div class="wrapper">
 				<Multiselect
-					id="sieve-address-part"
+					:id="templateid + '-addres-part'"
 					v-model="test.parameters.sieveAddressPart"
 					:options="addressParts"
 					:searchable="false"
@@ -27,10 +27,10 @@
 			</div>
 		</div>
 		<div v-if="showMatchTypes">
-			<label for="sieve-match-type">{{ t('mail', 'Matchtype(s)') }}</label>
+			<label :for="templateid + '-match-type'">{{ t('mail', 'Matchtype(s)') }}</label>
 			<div class="wrapper">
 				<Multiselect
-					id="sieve-match-type"
+					:id="templateid + '-match-type'"
 					v-model="matchTypeValue"
 					:options="matchtypes"
 					:searchable="false"
@@ -41,10 +41,10 @@
 			</div>
 		</div>
 		<div v-if="showEnvelopeParts">
-			<label for="sieve-envelope-part">{{ t('mail', 'EnvelopeParts') }}</label>
+			<label :for="templateid + '-envelope-part'">{{ t('mail', 'EnvelopeParts') }}</label>
 			<div class="wrapper">
 				<Multiselect
-					id="sieve-envelope-part"
+					:id="templateid + '-envelope-part'"
 					v-model="envelopePartValue"
 					:options="supportedsievestructure.envelopeParts"
 					:searchable="false"
@@ -55,10 +55,10 @@
 			</div>
 		</div>
 		<div v-if="showHeaders">
-			<label for="headers">{{ t('mail', 'Header(s)') }}</label>
+			<label :for="templateid + '-headers'">{{ t('mail', 'Header(s)') }}</label>
 			<div class="wrapper">
 				<Multiselect
-					id="headers"
+					:id="templateid + '-headers'"
 					v-model="headerValue"
 					:options="supportedsievestructure.headers"
 					:searchable="true"
@@ -73,18 +73,23 @@
 		</div>
 		<div v-if="expectedParameters.keylist" class="flex_column">
 			<label>{{ t('mail', 'Keylist') }}</label>
-			<template v-for="(key, index) in test.parameters.keylist">
-				<div :key="'key_' + index" class="flex_row">
-					<input v-model="test.parameters.keylist[index]" />
-					<input type="button" class="icon-add small" @click="addKey(index)" />
-					<input v-if="index > 0" type="button" class="icon-delete small" @click="removeKey(index)" />
-				</div>
-			</template>
+			<Multiselect
+				:id="templateid + '-keys'"
+				v-model="test.parameters.keylist"
+				:options="test.parameters.keylist"
+				:searchable="true"
+				:allow-empty="false"
+				:multiple="true"
+				:taggable="true"
+				tag-placeholder="Add this as new key"
+				@tag="addKey"
+			>
+			</Multiselect>
 		</div>
 		<div v-if="expectedParameters.size">
-			<label for="size">{{ t('mail', 'Size') }}</label>
+			<label :for="templateid + '-size'">{{ t('mail', 'Size') }}</label>
 			<div class="wrapper">
-				<input id="size" v-model="test.parameters.size[0]" />
+				<input :id="templateid + '-size'" v-model="test.parameters.size[0]" />
 			</div>
 		</div>
 	</div>
@@ -106,6 +111,10 @@ export default {
 		},
 		supportedsievestructure: {
 			type: Object,
+			required: true,
+		},
+		templateid: {
+			type: String,
 			required: true,
 		},
 	},
@@ -202,14 +211,13 @@ export default {
 			this.supportedsievestructure.headers.push(val)
 			this.test.parameters.headers.push(val)
 		},
-		addKey(index) {
-			this.test.parameters.keylist.splice(index + 1, 0, '')
+		addKey(val) {
+			this.test.parameters.keylist.push(val)
 		},
 		removeKey(index) {
 			this.test.parameters.keylist.splice(index, 1)
 		},
 		onSelectSubject(val) {
-			this.cleanMatchType(val)
 			Object.keys(this.expectedParameters).forEach((key) => {
 				this.cleanParameter(key)
 			})
@@ -250,33 +258,20 @@ export default {
 				Vue.set(this, 'expectedParameters', Object.assign({}))
 			}
 		},
-		cleanMatchType(val) {
-			this.test.parameters.matchtype = []
-		},
 		cleanParameter(parameter) {
-			this.test.parameters[parameter] = []
+			/*this.test.parameters[parameter] = []
 			if (!this.expectedParameters[parameter].multiple) {
 				this.test.parameters[parameter][0] = ''
-			}
+			}*/
 		},
 	},
 }
 </script>
 <style scoped>
-.flex_row {
-	display: flex;
-	flex-direction: row;
-}
-.flex_column {
-	display: flex;
-	flex-direction: column;
+.keylist {
+	min-width: 200px;
 }
 input {
 	margin: 0;
-}
-input.small {
-	width: 35px;
-	height: 35px;
-	padding: 0;
 }
 </style>
