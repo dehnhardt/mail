@@ -14,28 +14,51 @@
 					/>
 				</div>
 			</div>
-			<input id="add-filter-criterium" type="button" class="icon-add small" @click="addFilterCriterium" />
+			<input
+				id="add-filter-criterium"
+				type="button"
+				:value="t('mail', 'Add Filtercriterium')"
+				class="icon-add icon"
+				@click="addFilterCriterium"
+			/>
+			<EmptyContent v-if="filterrule.parsedrule.conditions.testlist.tests.length == 0" icon="icon-filter">
+				{{ t('mail', 'No tests defined') }}
+				<template #desc>{{ t('mail', 'You need to define at least one test') }}</template>
+			</EmptyContent>
 			<template v-for="(test, index) in filterrule.parsedrule.conditions.testlist.tests">
-				<div :key="'test_wrapper_' + index" class="flex_row">
+				<div :key="'test_wrapper_' + index" class="flex_row condition">
 					<input type="button" class="icon-delete" @click="deleteFilterCriterium(index)" />
 					<SieveFilterTest
 						:key="'test_' + index"
 						:test="test"
 						:supportedsievestructure="supportedsievestructure"
-						class="condition"
+						:templateid="'sieve-filterrule-' + index"
 					/>
 				</div>
 			</template>
 		</template>
 		<h2>{{ t('mail', 'Actions') }}</h2>
-		<input id="add-action" type="button" class="icon-add small" @click="addAction" />
+		<input
+			id="add-action"
+			type="button"
+			:value="t('mail', 'Add Action')"
+			class="icon-add icon"
+			@click="addAction"
+		/>
+		<EmptyContent v-if="filterrule.parsedrule.actions.length == 0" icon="icon-filter">
+			{{ t('mail', 'No actions defined') }}
+			<template #desc>{{
+				t('mail', 'You have to define at least one action that specifies what to do with the found mails')
+			}}</template>
+		</EmptyContent>
 		<template v-for="(action, index) in filterrule.parsedrule.actions">
-			<div :key="'action_' + index" class="flex_row">
+			<div :key="'action_' + index" class="flex_row action">
 				<input type="button" class="icon-delete" @click="deleteAction(index)" />
 				<SieveFilterAction
 					:action="action"
 					:supportedsievestructure="supportedsievestructure"
-					class="condition"
+					:templateid="'sieve-filter-action-' + index"
+					:accountid="$route.params.accountId"
 				/>
 			</div>
 		</template>
@@ -45,6 +68,7 @@
 </template>
 
 <script>
+import EmptyContent from '@nextcloud/vue/dist/Components/EmptyContent'
 import Multiselect from '@nextcloud/vue/dist/Components/Multiselect'
 import SieveFilterTest from './SieveFilterTest'
 import SieveFilterAction from './SieveFilterAction'
@@ -53,9 +77,10 @@ import Vue from 'vue'
 export default {
 	name: 'SieveFilterRules',
 	components: {
+		EmptyContent,
+		Multiselect,
 		SieveFilterTest,
 		SieveFilterAction,
-		Multiselect,
 	},
 	props: {
 		filterrules: {
@@ -76,12 +101,6 @@ export default {
 		filterrule() {
 			return this.filterrules[this.$route.params.ruleIndex]
 		},
-		/*showListOperator() {
-			return (
-				this.filterrule.parsedrule.conditions.testlist.tests &&
-				this.filterrule.parsedrule.conditions.testlist.tests.count > 1
-			)
-		},*/
 	},
 	methods: {
 		addFilterCriterium() {
@@ -92,9 +111,12 @@ export default {
 			)
 		},
 		addAction() {
-			Vue.set(this.filterrule.parsedrule.actions, this.filterrule.parsedrule.actions.length, {
-				action: '',
-				parameters: {}}
+			// eslint-disable-next-line prettier/prettier
+			Vue.set(
+				this.filterrule.parsedrule.actions,
+				this.filterrule.parsedrule.actions.length,
+				// eslint-disable-next-line prettier/prettier
+				{action: '', parameters: {}}
 			)
 		},
 		deleteFilterCriterium(index) {
@@ -121,10 +143,20 @@ export default {
 	padding-top: 20px;
 }
 .condition {
-	border-bottom: solid 2px gray;
+	border-bottom: solid 1px gray;
 }
 .action {
-	border-bottom: solid 2px gray;
+	border-bottom: solid 1px gray;
+}
+.empty-content {
+	margin: 0;
+}
+</style>
+
+<style>
+.flex_column {
+	display: flex;
+	flex-direction: column;
 }
 .flex_row {
 	display: flex;
