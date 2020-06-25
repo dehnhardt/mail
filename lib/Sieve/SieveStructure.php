@@ -66,6 +66,16 @@ class SieveStructure {
 		'Subject',
 	];
 
+	/** @var $parameterTypes */
+	public $parameterTypes = [
+		'headers' => 'String',
+		'keylist' => 'String',
+		'envelopepart' => 'String',
+		'mailbox' => 'String',
+		'address' => 'String',
+	];
+
+
 	public function __construct() {
 		$this->createSieveTestSubjects();
 		$this->createSieveActions();
@@ -108,10 +118,10 @@ class SieveStructure {
 
 	private function createSieveTestSubjects() {
 		$this->sieveTestSubjects = [
-			'address' => new SieveTestSubject('address', '', '%comparator %?addresspart %matchtype %*headers %*keylist'),
-			'envelope' => new SieveTestSubject('envelope', 'envelope', '%comparator %?addresspart %matchtype %*envelopepart %*keylist'),
+			'address' => new SieveTestSubject('address', '', '%?comparator %?addresspart %matchtype %*headers %*keylist'),
+			'envelope' => new SieveTestSubject('envelope', 'envelope', '%?comparator %?addresspart %matchtype %*envelopepart %*keylist'),
 			'exists' => new SieveTestSubject('exists', '', '%*headers'),
-			'header' => new SieveTestSubject('header', '', '%comparator %matchtype %*headers %*keylist'),
+			'header' => new SieveTestSubject('header', '', '%?comparator %matchtype %*headers %*keylist'),
 			'size' => new SieveTestSubject('size', '', '%matchtype %size'),
 		];
 	}

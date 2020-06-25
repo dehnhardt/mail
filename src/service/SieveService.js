@@ -46,3 +46,15 @@ export const getScriptContent = (accountId, scriptName) => {
 
 	return Axios.get(url).then((resp) => resp.data)
 }
+
+export const putScriptContent = (accountId, scriptName, install, scriptContent) => {
+	const url = generateUrl('/apps/mail/api/sieve/{id}/script/{scriptName}', {
+		id: accountId,
+		scriptName: scriptName,
+	})
+	const data = {
+		install: install,
+		scriptContent: scriptContent,
+	}
+	return Axios.put(url, data).then((resp) => resp.data)
+}

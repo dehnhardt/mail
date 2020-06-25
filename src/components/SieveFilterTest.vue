@@ -1,4 +1,4 @@
-<template>
+<template :disabled="true">
 	<div class="flex_row">
 		<div>
 			<label :for="templateid + '-test-subject'">{{ t('mail', 'Test Subject') }}</label>
@@ -17,7 +17,7 @@
 			<div class="wrapper">
 				<Multiselect
 					:id="templateid + '-addres-part'"
-					v-model="test.parameters.sieveAddressPart"
+					v-model="addressPartValue"
 					:options="addressParts"
 					:searchable="false"
 					:allow-empty="expectedParameters.addresspart.optional"
@@ -248,7 +248,7 @@ export default {
 						const val = this.test.parameters.element
 						Vue.set(this.test.parameters[element], 0, val)
 					} else {
-						if (this.test.parameters[element].length == 0 && (!multiple || element == 'keylist')) {
+						if (this.test.parameters[element].length == 0 && !multiple) {
 							Vue.set(this.test.parameters[element], 0, '')
 						}
 					}

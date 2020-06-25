@@ -75,6 +75,11 @@ return [
 			'verb' => 'GET'
 		],
 		[
+			'name' => 'sieve#setScriptContent',
+			'url' => '/api/sieve/{accountId}/script/{scriptName}',
+			'verb' => 'PUT'
+		],
+		[
 			'name' => 'folders#sync',
 			'url' => '/api/accounts/{accountId}/folders/{folderId}/sync',
 			'verb' => 'POST'

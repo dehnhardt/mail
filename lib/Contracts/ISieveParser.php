@@ -38,9 +38,18 @@ interface ISieveParser {
 
 	/**
 	 *
-	 * @param string $sieveClientFactory
+	 * @param string $script
 	 *
 	 * @return array;
 	 */
-	public function parse(string $script);
+
+	 public function parse(string $script);
+
+	/**
+	 *
+	 * @param array $scriptContent
+	 *
+	 * @return string;
+	 */
+	public function merge(array $scriptContent);
 }
