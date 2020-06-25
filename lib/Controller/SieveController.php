@@ -147,4 +147,24 @@ class SieveController extends Controller {
 		}
 		return new JSONResponse(['scriptContent' => $scriptContent]);
 	}
+
+	/**
+	 * @NoAdminRequired
+	 * @TrapError
+	 *
+	 * @param int $accountId
+	 * @param string $scriptName
+	 * @param bool $install
+	 * @param array $scriptContent
+	 *
+	 * @return JSONResponse
+	 * @throws ClientException
+	 */
+	public function setScriptContent(int $accountId, string $scriptName, bool $install, array $scriptContent) {
+		$this->logger->debug("SieveController: setScriptContent");
+		$account = $this->accountService->find($this->currentUserId, $accountId);
+		$this->sieveService->setScriptContent($account, $scriptName, $install, $scriptContent);
+		return new JSONResponse();
+	}
+
 }

@@ -63,6 +63,7 @@ import {
 	updateSieveAccount,
 	listScripts as listSieveScripts,
 	getScriptContent as getSieveScriptContent,
+	putScriptContent as putSieveScriptContent,
 } from '../service/SieveService'
 import logger from '../logger'
 import {normalizedEnvelopeListId} from './normalization'
@@ -183,6 +184,17 @@ export default {
 			})
 			.catch((err) => {
 				console.info('getSieveScriptContent errored')
+				throw err
+			})
+	},
+	putSieveScriptContent({commit}, {accountId, scriptName, install, scriptContent}) {
+		return putSieveScriptContent(accountId, scriptName, install, scriptContent)
+			.then((data) => {
+				console.info('putSieveScriptContent returned')
+				return data
+			})
+			.catch((err) => {
+				console.info('putSieveScriptContent errored')
 				throw err
 			})
 	},

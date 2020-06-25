@@ -135,6 +135,28 @@ class SieveService {
 
 	/**
 	 * @param Account $account
+	 * @param string $scriptName
+	 * @param bool $install
+	 * @param array $scriptContent
+	 *
+	 * @return bool
+	 * @throws ServiceException
+	 */
+	public function setScriptContent(Account $account, string $scriptName, bool $install, array $scriptContent) : bool {
+		$this->logger->debug("SieveService: setScriptContent");
+		$script = $this->sieveParser->merge($scriptContent);
+		$sieveClient = $this->sieveClientFactory->getSieveClient($account);
+		try{
+			$sieveClient->installScript($scriptName, $script, $install);
+		}
+		catch(\Horde\ManageSieve\Exception $e){
+			$this->logger->error($e->getMessage());
+		}
+		return true;
+	}
+
+	/**
+	 * @param Account $account
 	 *
 	 */
 	private function disableSieveAccount(Account $account) {
