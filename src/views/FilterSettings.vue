@@ -20,6 +20,7 @@
 						type="button"
 						:value="t('mail', 'Save Filterset')"
 						class="icon-save icon"
+						:disabled="!scriptSaveable"
 						@click="saveScriptFile"
 					/>
 				</div>
@@ -30,6 +31,9 @@
 				<div class="flex_column filter-set-head">
 					<label for="script-source">{{ t('mail', 'Script Source Application') }}</label>
 					<input id="script-source" v-model="scriptOrigin" type="text" disabled="disabled" />
+					<div v-if="!scriptSaveable" class="note">
+						{{ t('mail', 'This script was created by a different client. Saving disabled') }}
+					</div>
 				</div>
 				<div class="flex_column filter-set-head">
 					<label for="set-as-active">{{ t('mail', 'Activate Script when saving') }}</label>
@@ -100,13 +104,15 @@ export default {
 			generatorName: 'Nextcloud Mail',
 			modal: false,
 			scripts: Array(),
-			scriptContent: Array(),
 			filterRules: Array(),
 			supportedSieveStructure: Object(),
 			filtersets: Object(),
 		}
 	},
 	computed: {
+		scriptSaveable() {
+			return this.scriptOrigin == this.generatorName
+		},
 		displayName() {
 			return this.$store.getters.getAccount(this.$route.params.accountId).name
 		},
@@ -325,5 +331,9 @@ input.icon {
 .flex_row {
 	display: flex;
 	flex-direction: row;
+}
+div.note {
+	max-width: 150px;
+	line-break: loose;
 }
 </style>
