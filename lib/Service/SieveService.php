@@ -146,10 +146,9 @@ class SieveService {
 		$this->logger->debug("SieveService: setScriptContent");
 		$script = $this->sieveParser->merge($scriptContent);
 		$sieveClient = $this->sieveClientFactory->getSieveClient($account);
-		try{
+		try {
 			$sieveClient->installScript($scriptName, $script, $install);
-		}
-		catch(\Horde\ManageSieve\Exception $e){
+		} catch (\Horde\ManageSieve\Exception $e) {
 			$this->logger->error($e->getMessage());
 		}
 		return true;

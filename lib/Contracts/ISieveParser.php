@@ -43,7 +43,7 @@ interface ISieveParser {
 	 * @return array;
 	 */
 
-	 public function parse(string $script);
+	public function parse(string $script);
 
 	/**
 	 *

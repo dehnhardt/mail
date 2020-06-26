@@ -1,7 +1,7 @@
 <template v-if="filterrule">
 	<div class="app-content-details">
 		<label for="rules-name">{{ t('mail', 'Rulename') }}</label>
-		<input id="rules-name" v-model="filterrule.name" type="text" />
+		<input id="rules-name" v-model="filterrule.name" :disabled="!filterrule.origname" type="text" />
 		<template>
 			<h2>{{ t('mail', 'Filtercriteria') }}</h2>
 			<div v-if="filterrule.parsedrule.conditions.testlist.tests.length > 1">

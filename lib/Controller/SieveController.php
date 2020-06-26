@@ -166,5 +166,4 @@ class SieveController extends Controller {
 		$this->sieveService->setScriptContent($account, $scriptName, $install, $scriptContent);
 		return new JSONResponse();
 	}
-
 }

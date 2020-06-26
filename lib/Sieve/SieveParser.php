@@ -81,6 +81,7 @@ class SieveParser implements ISieveParser {
 	}
 
 	private function parseMultilineComments(string $script) {
+		//separate multiline comments from singleline comments and instructions
 		$tokens = preg_split("/(\/\*[^*]*\*\/)/s", $script, -1, PREG_SPLIT_DELIM_CAPTURE);
 		foreach ($tokens as $token) {
 			$token = trim($token);
@@ -98,7 +99,7 @@ class SieveParser implements ISieveParser {
 		if ($i > 0) {
 			$this->headerRule['scriptOrigin']=trim($matches[1]);
 			$ret = true;
-		} else if(stripos($token, "RAINLOOP:SIEVE") !== false ){
+		} elseif (stripos($token, "RAINLOOP:SIEVE") !== false) {
 			$this->headerRule['scriptOrigin']="Rainloop";
 			$ret = true;
 		}
@@ -109,34 +110,45 @@ class SieveParser implements ISieveParser {
 		$level_0 = [];
 		$tokencount=0;
 		$rules=0;
-		// For scripts with rule naming convention
+		// For scripts with rule naming convention "# rule:[" which is used by several sieve clients
 		// $tokens = explode("# rule:[", $script);
 		$tokens = preg_split("/(# rule:[^\{]*\{(?:[^{}]++|(?R))*\})/", $script, -1, PREG_SPLIT_DELIM_CAPTURE);
 		if (sizeof($tokens) > 1 && stripos($tokens[0], "# rule:[") === false) {
 			$header = preg_split("/\r\n/", $tokens[0]);
 		}
-		// if no rule naming convention found, split by topmost 'if' statements
+		// if no rule naming convention found, split by topmost 'if' statements:
+		// Everything above the first if statement is some kind of header
 		if (sizeof($tokens) == 1) {
 			$tokens = preg_split("/(if[^\{]*\{(?:[^{}]++|(?R))*\})/", $script, -1, PREG_SPLIT_DELIM_CAPTURE);
 			if (sizeof($tokens) > 0 && stripos($tokens[0], "if") === false) {
+				// Split header by line
 				$header = preg_split("/\r\n/", $tokens[0]);
 			}
 		}
+		// If header consists of more than one line, remove the unsplit header
+		// and replace with 'line by line' header
 		if (sizeof($header) > 1) {
 			unset($tokens[0]);
 			$tokens = array_merge($header, $tokens);
 		}
+		// than iterate throug all tokens
 		foreach ($tokens as $token) {
 			$token = trim($token);
-			// if we have comments with rulenames
 			if (stripos($token, "require") === 0) {
+				// requires found, although useless for us,
+				// because we have to recollect the requires when rules change
 				$this->parsedTree[] = ["type" => "require", "value" => $token];
 			} elseif (stripos($token, "# rule:[") === 0 || stripos($token, "if") === 0) {
+				// we have found comments with rulenames or the start of a rule (if)
 				$this->ruleNumber++;
 				$this->parsedTree[]= $this->parseRule($token);
 				;
 			} elseif (stripos($token, "#") === 0) {
-				if(!$this->guessOrigin($token)) {
+				// single line comment found
+				// if we have found a hint for an originator if the
+				// file, we will store it and will not store this token
+				if (!$this->guessOrigin($token)) {
+					// otherwise siply store the comment
 					$this->parsedTree[] = ["type" => "comment", "value" => $token];
 				}
 			}
@@ -145,23 +157,37 @@ class SieveParser implements ISieveParser {
 	}
 
 	private function parseRule(string $rule) : array {
+		// we will handle the rule here
 		$level_1 = ["type" => "rule"];
+		$namefound = false;
 		if (stripos($rule, "# rule:[") === 0) {
-			$i = preg_match("/.*\[([^\]]*)\][\n\r]*(.*)/s", $rule, $matches);
+			// here we have a rule with naming convention
+			// separate name from rule
+			//[^\[]*\[([^\]]*)\](.*)
+			// $i = preg_match("/.*\[([^\]]*)\][\n\r]*(.*)/s", $rule, $matches);
+			$i = preg_match("/[^\[]*\[([^\]]*)\](.*)/s", $rule, $matches);
 			if ($i > 0) {
+				// if we can identify a rulename -> store and remember it is the original name
 				$level_1['name'] = $matches[1];
 				$level_1['rule'] = $matches[2];
+				$namefound = true;
 				$level_1['parsedrule'] = $this->parseRuleBody($matches[2]);
 			} else {
+				// for some reason we can not finde the name (fallback)
+				// we assign a name pattern and make it read only
+				// simply parse the rule
 				$level_1['name'] = "Rule " . $this->ruleNumber;
 				$level_1['rule'] = $rule;
 				$level_1['parsedrule'] = $this->parseRuleBody($rule);
 			}
 		} else {
+			// no naming convention found - simply parse the rule
+			// we assign a name pattern and make it read only
 			$level_1['name'] = "Rule " . $this->ruleNumber;
 			$level_1['rule'] = $rule;
 			$level_1['parsedrule'] = $this->parseRuleBody($rule);
 		}
+		$level_1['origname'] = $namefound;
 		return $level_1;
 	}
 
@@ -276,7 +302,7 @@ class SieveParser implements ISieveParser {
 		$action = $tokenArray[0];
 		$level_4['action'] = $action;
 		$paramlist = $this->sieveStructure->sieveActions[$action]->parameters;
-		if(sizeof($tokenArray)>1 && $paramlist != ""){
+		if (sizeof($tokenArray)>1 && $paramlist != "") {
 			$level_4['parameters'] = $this->parseActionParameters($tokenArray, $paramlist, $offset);
 		}
 		return $level_4;
@@ -303,8 +329,8 @@ class SieveParser implements ISieveParser {
 
 	public function merge(array $scriptContent) {
 		$script = "";
-		foreach($scriptContent as $contentItem){
-			switch($contentItem['type']) {
+		foreach ($scriptContent as $contentItem) {
+			switch ($contentItem['type']) {
 				case 'header': $script .= $this->mergeHeader($contentItem) . "\r\n";
 				break;
 				case 'require': break;
@@ -317,14 +343,15 @@ class SieveParser implements ISieveParser {
 		}
 		return $this->mergeRequire() . $script;
 	}
-	private function mergeRequire(){
+	private function mergeRequire() {
 		$reqire = "";
-		if(sizeof($this->requirements) > 0 ){
+		if (sizeof($this->requirements) > 0) {
 			$require .= "require [";
 			$i = 0;
-			foreach($this->requirements as $requirement){
-				if( $i > 0)
+			foreach ($this->requirements as $requirement) {
+				if ($i > 0) {
 					$require .= ", ";
+				}
 				$require .= '"' . $requirement . '"';
 			}
 			$require .= "];\r\n";
@@ -333,7 +360,7 @@ class SieveParser implements ISieveParser {
 	}
 	private function mergeHeader(array $token) {
 		$header = "";
-		if( $token['scriptOrigin'] !== 'unknown') {
+		if ($token['scriptOrigin'] !== 'unknown') {
 			$header = "## Generated by " . $token['scriptOrigin'] . " ##";
 		}
 		return $header;
@@ -346,7 +373,7 @@ class SieveParser implements ISieveParser {
 
 	private function mergeRule(array $token) {
 		$rule = "";
-		if($token['name'] != ""){
+		if ($token['name'] != "" && $token['origname']) {
 			$rule .= "# rule:[" . $token['name'] . "]\r\n";
 		}
 		$rule .= $this->mergeParsedRule($token['parsedrule']);
@@ -362,7 +389,7 @@ class SieveParser implements ISieveParser {
 
 	private function mergeActions(array $token) {
 		$actions = "{";
-		foreach($token as $action){
+		foreach ($token as $action) {
 			$actions .= "\r\n\t" . $this->mergeAction($action) . ";";
 			$i++;
 		}
@@ -373,40 +400,46 @@ class SieveParser implements ISieveParser {
 	private function mergeAction(array $token) {
 		$actionname = $token['action'];
 		$action = $actionname . " ";
-		$action .= $this->mergeActionParameters($actionname, $token['parameters']);
 		$extension =$this->sieveStructure->sieveActions[$actionname]->extension;
-		if($extension != '' && array_search($testsubject, $this->requirements) === false)
+		if ($extension != '' && array_search($testsubject, $this->requirements) === false) {
 			$this->requirements[] = $extension;
+		}
+		if ($token['parameters']) {
+			$action .= $this->mergeActionParameters($actionname, $token['parameters']);
+		}
 		return $action;
 	}
 
 	private function mergeActionParameters(string $action, array $parameters) {
 		$actionparameters = "";
 		$expectedParameters = $this->sieveStructure->sieveActions[$action]->parameters;
-		if(trim($expectedParameters) == "")
+		if (trim($expectedParameters) == "") {
 			return $actionparameters;
+		}
 		$expectedParamArray=explode(" ", $expectedParameters);
-		foreach($expectedParamArray as $expectedParam){
+		foreach ($expectedParamArray as $expectedParam) {
 			$multiple = false;
 			$optional = false;
 			$expectedParam = substr($expectedParam, 1);
-			if(stripos($expectedParam, '*' ) === 0 ){
+			if (stripos($expectedParam, '*') === 0) {
 				$multiple = true;
 				$expectedParam = substr($expectedParam, 1);
 			}
-			if(stripos($expectedParam, '?' ) === 0 ){
+			if (stripos($expectedParam, '?') === 0) {
 				$optional = true;
 				$expectedParam = substr($expectedParam, 1);
 			}
-			$values = array_filter($parameters[$expectedParam], [$this, "filterEmpty"]);
-			if( $values ){
-				if( !$multiple && sizeof($values) > 1) {
-					$this->logger->error("To much values for parameter");
-				} else if( !$optional && sizeof($values) == 0){
-					$this->logger("Error");
-				} else {
-					$isString = $this->sieveStructure->parameterTypes[$expectedParam] == "String";
-					$actionparameters .= $this->mergeParameterArray($values, $isString) . " ";
+			if ($parameters[$expectedParam]) {
+				$values = array_filter($parameters[$expectedParam], [$this, "filterEmpty"]);
+				if ($values) {
+					if (!$multiple && sizeof($values) > 1) {
+						$this->logger->error("To much values for parameter");
+					} elseif (!$optional && sizeof($values) == 0) {
+						$this->logger("Error");
+					} else {
+						$isString = $this->sieveStructure->parameterTypes[$expectedParam] == "String";
+						$actionparameters .= $this->mergeParameterArray($values, $isString) . " ";
+					}
 				}
 			}
 		}
@@ -421,8 +454,9 @@ class SieveParser implements ISieveParser {
 
 	private function mergeTestList(array $token) {
 		$testlist = "";
-		if( $token['sieveListOperator'] )
+		if ($token['sieveListOperator']) {
 			$testlist .= $token['sieveListOperator'] . " ";
+		}
 		$testlist .= "(\r\n";
 		$testlist .= $this->mergeTests($token['tests']);
 		$testlist .= "\r\n)";
@@ -432,9 +466,10 @@ class SieveParser implements ISieveParser {
 	private function mergeTests(array $token) {
 		$tests = "";
 		$i = 0;
-		foreach($token as $test){
-			if($i > 0)
+		foreach ($token as $test) {
+			if ($i > 0) {
 				$tests .= ",\r\n";
+			}
 			$tests .= "\t" . $this->mergeTest($test);
 			++$i;
 		}
@@ -445,8 +480,9 @@ class SieveParser implements ISieveParser {
 		$testsubject = $test['testSubject'];
 		$testval = $testsubject . " ";
 		$extension =$this->sieveStructure->sieveTestSubjects[$testsubject]->extension;
-		if($extension != '' && array_search($testsubject, $this->requirements) === false)
+		if ($extension != '' && array_search($testsubject, $this->requirements) === false) {
 			$this->requirements[] = $extension;
+		}
 		$testval .= $this->mergeTestParameters($test['testSubject'], $test['parameters']);
 		return $testval;
 	}
@@ -455,27 +491,29 @@ class SieveParser implements ISieveParser {
 		$testparameters = "";
 		$expectedParameters = $this->sieveStructure->sieveTestSubjects[$testsubject]->parameters;
 		$expectedParamArray=explode(" ", $expectedParameters);
-		foreach($expectedParamArray as $expectedParam){
+		foreach ($expectedParamArray as $expectedParam) {
 			$multiple = false;
 			$optional = false;
 			$expectedParam = substr($expectedParam, 1);
-			if(stripos($expectedParam, '*' ) === 0 ){
+			if (stripos($expectedParam, '*') === 0) {
 				$multiple = true;
 				$expectedParam = substr($expectedParam, 1);
 			}
-			if(stripos($expectedParam, '?' ) === 0 ){
+			if (stripos($expectedParam, '?') === 0) {
 				$optional = true;
 				$expectedParam = substr($expectedParam, 1);
 			}
-			$values = array_filter($parameters[$expectedParam], [$this, "filterEmpty"]);
-			if( $values ){
-				if( !$multiple && sizeof($values) > 1) {
-					$this->logger->error("To much values for parameter");
-				} else if( !$optional && sizeof($values) == 0){
-					$this->logger("Error");
-				} else {
-					$isString = $this->sieveStructure->parameterTypes[$expectedParam] == "String";
-					$testparameters .= $this->mergeParameterArray($values, $isString) . " ";
+			if ($parameters[$expectedParam]) {
+				$values = array_filter($parameters[$expectedParam], [$this, "filterEmpty"]);
+				if ($values) {
+					if (!$multiple && sizeof($values) > 1) {
+						$this->logger->error("To much values for parameter");
+					} elseif (!$optional && sizeof($values) == 0) {
+						$this->logger("Error");
+					} else {
+						$isString = $this->sieveStructure->parameterTypes[$expectedParam] == "String";
+						$testparameters .= $this->mergeParameterArray($values, $isString) . " ";
+					}
 				}
 			}
 		}
@@ -485,16 +523,19 @@ class SieveParser implements ISieveParser {
 	private function mergeParameterArray(array $values, bool $isString) {
 		$params = "";
 		$i = 0;
-		if( sizeof($values) > 1 )
+		if (sizeof($values) > 1) {
 			$params .= "[";
-		foreach($values as $value) {
-			if( $i > 0 )
+		}
+		foreach ($values as $value) {
+			if ($i > 0) {
 				$params .= ", ";
+			}
 			$params .= ($isString?'"':'') . $value . ($isString?'"':'');
 			$i++;
 		}
-		if( sizeof($values) > 1 )
+		if (sizeof($values) > 1) {
 			$params .= "]";
+		}
 		return $params;
 	}
 
@@ -506,4 +547,3 @@ class SieveParser implements ISieveParser {
 		return $var != "";
 	}
 }
-
