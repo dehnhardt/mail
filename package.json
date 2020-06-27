@@ -40,7 +40,7 @@
     "@nextcloud/router": "^1.1.0",
     "@nextcloud/vue": "^1.5.0",
     "@riophae/vue-treeselect": "^0.4.0",
-    "@vue/babel-preset-app": "^4.4.5",
+    "@vue/babel-preset-app": "^4.4.6",
     "color-convert": "^2.0.1",
     "core-js": "^3.6.5",
     "davclient.js": "git+https://github.com/owncloud/davclient.js.git#0.2.1",
