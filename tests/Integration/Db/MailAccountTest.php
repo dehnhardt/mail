@@ -48,6 +48,7 @@ class MailAccountTest extends TestCase {
 		$a->setOrder(13);
 
 		$this->assertEquals([
+			'id' => 12345,
 			'accountId' => 12345,
 			'name' => 'Peter Parker',
 			'emailAddress' => 'peter.parker@marvel.com',
@@ -64,11 +65,13 @@ class MailAccountTest extends TestCase {
 			'provisioned' => false,
 			'order' => 13,
 			'showSubscribedOnly' => null,
+			'personalNamespace' => null,
 		], $a->toJson());
 	}
 
 	public function testMailAccountConstruct() {
 		$expected = [
+			'id' => 12345,
 			'accountId' => 12345,
 			'accountName' => 'Peter Parker',
 			'emailAddress' => 'peter.parker@marvel.com',
@@ -85,6 +88,7 @@ class MailAccountTest extends TestCase {
 			'provisioned' => false,
 			'order' => null,
 			'showSubscribedOnly' => null,
+			'personalNamespace' => null,
 		];
 		$a = new MailAccount($expected);
 		// TODO: fix inconsistency

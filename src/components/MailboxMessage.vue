@@ -11,28 +11,23 @@
 				:infinite-scroll-distance="10"
 				@shortkey.native="onShortcut">
 				<Mailbox
-					v-if="!folder.isPriorityInbox"
+					v-if="!mailbox.isPriorityInbox"
 					:account="account"
-					:folder="folder"
+					:mailbox="mailbox"
 					:search-query="query"
 					:bus="bus" />
 				<template v-else>
-					<li class="app-content-list-item">
+					<div class="app-content-list-item">
 						<SectionTitle class="important" :name="t('mail', 'Important')" />
 						<Popover trigger="hover focus">
-							<button slot="trigger" class="button icon-info" />
-							{{
-								t(
-									'mail',
-									'Messages will automatically be marked as important based on which messages you interacted with or marked as important. In the beginning you might have to manually change the importance to teach the system, but it will improve over time.'
-								)
-							}}
+							<button slot="trigger" :aria-label="t('mail', 'Important info')" class="button icon-info" />
+							{{ importantInfo }}
 						</Popover>
-					</li>
+					</div>
 					<Mailbox
 						class="nameimportant"
 						:account="unifiedAccount"
-						:folder="unifiedInbox"
+						:mailbox="unifiedInbox"
 						:search-query="appendToSearch('is:important')"
 						:paginate="'manual'"
 						:is-priority-inbox="true"
@@ -43,7 +38,7 @@
 					<Mailbox
 						class="namestarred"
 						:account="unifiedAccount"
-						:folder="unifiedInbox"
+						:mailbox="unifiedInbox"
 						:search-query="appendToSearch('is:starred not:important')"
 						:paginate="'manual'"
 						:is-priority-inbox="true"
@@ -53,7 +48,7 @@
 					<Mailbox
 						class="nameother"
 						:account="unifiedAccount"
-						:folder="unifiedInbox"
+						:mailbox="unifiedInbox"
 						:open-first="false"
 						:search-query="appendToSearch('not:starred not:important')"
 						:is-priority-inbox="true"
@@ -107,7 +102,7 @@ export default {
 			type: Object,
 			required: true,
 		},
-		folder: {
+		mailbox: {
 			type: Object,
 			required: true,
 		},
@@ -115,6 +110,8 @@ export default {
 	data() {
 		return {
 			alive: false,
+			// eslint-disable-next-line
+			importantInfo: t('mail', 'Messages will automatically be marked as important based on which messages you interacted with or marked as important. In the beginning you might have to manually change the importance to teach the system, but it will improve over time.'),
 			bus: new Vue(),
 			searchQuery: undefined,
 			shortkeys: {
@@ -132,13 +129,13 @@ export default {
 			return this.$store.getters.getAccount(UNIFIED_ACCOUNT_ID)
 		},
 		unifiedInbox() {
-			return this.$store.getters.getFolder(UNIFIED_ACCOUNT_ID, UNIFIED_INBOX_ID)
+			return this.$store.getters.getMailbox(UNIFIED_INBOX_ID)
 		},
 		hasMessages() {
-			// it actually should be `return this.$store.getters.getEnvelopes(this.account.id, this.folder.id).length > 0`
-			// but for some reason Vue doesn't track the dependencies on reactive data then and messages in subfolders can't
+			// it actually should be `return this.$store.getters.getEnvelopes(this.account.id, this.mailbox.databaseId).length > 0`
+			// but for some reason Vue doesn't track the dependencies on reactive data then and messages in submailboxes can't
 			// be opened then
-			const list = this.folder.envelopeLists[normalizedEnvelopeListId(this.searchQuery)]
+			const list = this.mailbox.envelopeLists[normalizedEnvelopeListId(this.searchQuery)]
 
 			if (list === undefined) {
 				return false
@@ -146,7 +143,7 @@ export default {
 			return list.length > 0
 		},
 		showMessage() {
-			return (this.folder.isPriorityInbox === true || this.hasMessages) && this.$route.name === 'message'
+			return (this.mailbox.isPriorityInbox === true || this.hasMessages) && this.$route.name === 'message'
 		},
 		query() {
 			if (this.$route.params.filter === 'starred') {
@@ -159,17 +156,19 @@ export default {
 		},
 		newMessage() {
 			return (
-				this.$route.params.messageUuid === 'new'
-				|| this.$route.params.messageUuid === 'reply'
-				|| this.$route.params.messageUuid === 'replyAll'
+				this.$route.params.threadId === 'new'
+				|| this.$route.params.threadId === 'reply'
+				|| this.$route.params.threadId === 'replyAll'
 			)
 		},
 	},
 	created() {
 		this.alive = true
 
-		// eslint-disable-next-line no-new
-		new OCA.Search(this.searchProxy, this.clearSearchProxy)
+		window.addEventListener('DOMContentLoaded', (event) => {
+			// eslint-disable-next-line no-new
+			new OCA.Search(this.searchProxy, this.clearSearchProxy)
+		})
 	},
 	beforeDestroy() {
 		this.alive = false
@@ -177,16 +176,15 @@ export default {
 	methods: {
 		hideMessage() {
 			this.$router.replace({
-				name: 'folder',
+				name: 'mailbox',
 				params: {
-					accountId: this.account.id,
-					folderId: this.folder.id,
+					mailboxId: this.mailbox.databaseId,
 					filter: this.$route.params.filter ? this.$route.params.filter : undefined,
 				},
 			})
 		},
-		deleteMessage(envelopeUid) {
-			this.bus.$emit('delete', envelopeUid)
+		deleteMessage(id) {
+			this.bus.$emit('delete', id)
 		},
 		onScroll(event) {
 			logger.debug('scroll', { event })
@@ -243,5 +241,9 @@ export default {
 	&:focus {
 		background-color: var(--color-background-dark);
 	}
+}
+
+#app-content-wrapper {
+	display: flex;
 }
 </style>

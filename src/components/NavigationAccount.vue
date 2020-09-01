@@ -27,7 +27,7 @@
 		:icon="iconError"
 		:menu-open.sync="menuOpen"
 		:title="account.emailAddress"
-		:to="firstFolderRoute"
+		:to="firstMailboxRoute"
 		:exact="true"
 		@update:menuOpen="onMenuToggle">
 		<!-- Color dot -->
@@ -39,7 +39,7 @@
 				{{ quotaText }}
 			</ActionText>
 			<ActionRouter :to="settingsRoute" icon="icon-settings">
-				{{ t('mail', 'Edit account') }}
+				{{ t('mail', 'Account settings') }}
 			</ActionRouter>
 			<ActionCheckbox
 				:checked="account.showSubscribedOnly"
@@ -47,15 +47,15 @@
 				@update:checked="changeShowSubscribedOnly">
 				{{ t('mail', 'Show only subscribed folders') }}
 			</ActionCheckbox>
-			<ActionButton v-if="!editing" icon="icon-folder" @click="openCreateFolder">
+			<ActionButton v-if="!editing" icon="icon-folder" @click="openCreateMailbox">
 				{{ t('mail', 'Add folder') }}
 			</ActionButton>
-			<ActionInput v-if="editing" icon="icon-folder" @submit.prevent.stop="createFolder" />
+			<ActionInput v-if="editing" icon="icon-folder" @submit.prevent.stop="createMailbox" />
 			<ActionText v-if="showSaving" icon="icon-loading-small">
 				{{ t('mail', 'Saving') }}
 			</ActionText>
 			<ActionButton v-if="!isFirst" icon="icon-triangle-n" @click="changeAccountOrderUp">
-				{{ t('mail', 'Move Up') }}
+				{{ t('mail', 'Move up') }}
 			</ActionButton>
 			<ActionButton v-if="!isLast" icon="icon-triangle-s" @click="changeAccountOrderDown">
 				{{ t('mail', 'Move down') }}
@@ -98,7 +98,7 @@ export default {
 			type: Object,
 			required: true,
 		},
-		firstFolder: {
+		firstMailbox: {
 			type: Object,
 			required: true,
 		},
@@ -135,12 +135,11 @@ export default {
 				},
 			}
 		},
-		firstFolderRoute() {
+		firstMailboxRoute() {
 			return {
-				name: 'folder',
+				name: 'mailbox',
 				params: {
-					accountId: this.account.id,
-					folderId: this.firstFolder.id,
+					mailboxId: this.firstMailbox.databaseId,
 				},
 			}
 		},
@@ -168,22 +167,22 @@ export default {
 		},
 	},
 	methods: {
-		createFolder(e) {
+		createMailbox(e) {
 			this.editing = true
 			const name = e.target.elements[1].value
-			logger.info('creating folder ' + name)
+			logger.info('creating mailbox ' + name)
 			this.menuOpen = false
 			this.$store
-				.dispatch('createFolder', { account: this.account, name })
-				.then(() => logger.info(`folder ${name} created`))
+				.dispatch('createMailbox', { account: this.account, name })
+				.then(() => logger.info(`mailbox ${name} created`))
 				.catch((error) => {
-					logger.error('could not create folder', { error })
+					logger.error('could not create mailbox', { error })
 					throw error
 				})
 			this.editing = false
 			this.showSaving = false
 		},
-		openCreateFolder() {
+		openCreateMailbox() {
 			this.editing = true
 			this.showSaving = false
 		},
@@ -243,7 +242,7 @@ export default {
 				})
 				.then(() => {
 					this.savingShowOnlySubscribed = false
-					logger.info('show only subscribed folders updated to ' + onlySubscribed)
+					logger.info('show only subscribed mailboxes updated to ' + onlySubscribed)
 				})
 				.catch((error) => {
 					logger.error('could not update subscription mode', { error })
