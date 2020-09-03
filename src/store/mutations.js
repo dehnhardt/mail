@@ -113,6 +113,9 @@ export default {
 	addMailbox(state, { account, mailbox }) {
 		addMailboxToState(state, account, mailbox)
 	},
+	updateMailbox(state, { mailbox }) {
+		Vue.set(state.mailboxes, mailbox.databaseId, mailbox)
+	},
 	removeMailbox(state, { id }) {
 		const mailbox = state.mailboxes[id]
 		if (mailbox === undefined) {
@@ -212,6 +215,9 @@ export default {
 	},
 	addMessage(state, { message }) {
 		Vue.set(state.messages, message.databaseId, message)
+	},
+	addMessageThread(state, { message, thread }) {
+		Vue.set(message, 'thread', thread)
 	},
 	removeMessage(state, { id }) {
 		Vue.delete(state.messages, id)

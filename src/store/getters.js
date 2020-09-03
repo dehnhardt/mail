@@ -19,7 +19,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { defaultTo, head } from 'ramda'
+import { defaultTo, head, sortBy, prop } from 'ramda'
 
 import { UNIFIED_ACCOUNT_ID } from './constants'
 import { normalizedEnvelopeListId } from './normalization'
@@ -60,5 +60,8 @@ export const getters = {
 	},
 	getMessage: (state) => (id) => {
 		return state.messages[id]
+	},
+	getMessageThread: (state) => (id) => {
+		return sortBy(prop('dateInt'), state.messages[id]?.thread ?? [])
 	},
 }
