@@ -13,7 +13,6 @@ OC.L10N.register(
     "Important" : "Važno",
     "Favorites" : "Favoriti",
     "Other" : "Ostali",
-    "to" : "do",
     "Settings" : "Podešavanje",
     "Quota" : "Kvota",
     "Add folder" : "Add folder",

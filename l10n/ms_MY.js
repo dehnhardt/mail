@@ -11,7 +11,6 @@ OC.L10N.register(
     "Delete" : "Padam",
     "Favorites" : "Favorites",
     "Other" : "Lain",
-    "to" : "kepada",
     "Settings" : "Tetapan",
     "Quota" : "Kuota",
     "Add folder" : "Add folder",

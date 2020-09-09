@@ -14,7 +14,6 @@ OC.L10N.register(
     "Important" : "Viktig",
     "Favorites" : "Favorit",
     "Other" : "Anna",
-    "to" : "til",
     "Settings" : "Instillingar",
     "Quota" : "Kvote",
     "Add folder" : "Add folder",
