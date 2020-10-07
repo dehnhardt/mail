@@ -7,9 +7,12 @@
 					<h2 :title="threadSubject">
 						{{ threadSubject }}
 					</h2>
-					<p class="transparency">
-						<AddressList :entries="threadParticipants" />
-					</p>
+					<div class="avatar-header">
+						<RecipientBubble v-for="participant in threadParticipants"
+							:key="participant.email"
+							:email="participant.email"
+							:label="participant.label" />
+					</div>
 				</div>
 			</div>
 			<ThreadEnvelope v-for="env in thread"
@@ -26,20 +29,21 @@
 import AppContentDetails from '@nextcloud/vue/dist/Components/AppContentDetails'
 import { prop, uniqBy } from 'ramda'
 
-import AddressList from './AddressList'
 import { getRandomMessageErrorMessage } from '../util/ErrorMessageFactory'
 import Loading from './Loading'
 import logger from '../logger'
+import RecipientBubble from './RecipientBubble'
 import ThreadEnvelope from './ThreadEnvelope'
 
 export default {
 	name: 'Thread',
 	components: {
-		AddressList,
+		RecipientBubble,
 		AppContentDetails,
 		Loading,
 		ThreadEnvelope,
 	},
+
 	data() {
 		return {
 			loading: true,
@@ -144,7 +148,7 @@ export default {
 
 .mail-message-body {
 	flex: 1;
-	margin-bottom: 10px;
+	margin-bottom: 60px;
 	position: relative;
 }
 
@@ -175,7 +179,7 @@ export default {
 #mail-thread-header-fields {
 	// initial width
 	width: 0;
-	padding-left: 38px;
+	padding-left: 60px;
 	// grow and try to fill 100%
 	flex: 1 1 auto;
 	h2,
@@ -205,8 +209,8 @@ export default {
 	text-align: left;
 }
 
-#mail-content {
-	margin: 10px 38px 50px 38px;
+#mail-content, .mail-signature {
+	margin: 10px 38px 50px 60px;
 
 	.mail-message-body-html & {
 		margin-bottom: -44px; // accounting for the sticky attachment button
@@ -251,10 +255,6 @@ export default {
 	}
 }
 
-::v-deep .modal-container {
-	overflow-y: scroll !important;
-}
-
 @media print {
 	#mail-thread-header-fields {
 		position: relative;
@@ -285,5 +285,11 @@ export default {
 }
 .app-content-list-item-star.icon-starred {
 	display: none;
+}
+.user-bubble__wrapper {
+	margin-right: 4px;
+}
+.user-bubble__title {
+	cursor: pointer;
 }
 </style>

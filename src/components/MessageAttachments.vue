@@ -34,7 +34,7 @@
 				:mime="attachment.mime"
 				:mime-url="attachment.mimeUrl" />
 		</div>
-		<p v-if="moreThanOne">
+		<p v-if="moreThanOne" class="attachments-button-wrapper">
 			<button
 				class="attachments-save-to-cloud"
 				:class="{'icon-folder': !savingToCloud, 'icon-loading-small': savingToCloud}"
@@ -81,6 +81,7 @@ export default {
 				.addMimeTypeFilter('httpd/unix-directory')
 				.setModal(true)
 				.setType(1)
+				.allowDirectories(true)
 				.build()
 
 			const saveAttachments = (id) => (directory) => {
@@ -103,17 +104,24 @@ export default {
 }
 </script>
 
-<style>
+<style lang="scss">
 .attachments {
-	width: 210px;
+	width: 300px;
 }
 
 /* show icon + text for Download all button
 		as well as when there is only one attachment */
+.attachments-button-wrapper {
+	text-align: center;
+}
 .attachments-save-to-cloud {
-	display: block;
-	margin: 3px auto 0 auto;
-	background-position: 9px center;
-	padding-left: 32px;
+	display: inline-block;
+	margin: 16px;
+	background-position: 16px center;
+	padding: 12px;
+	padding-left: 44px;
+}
+.oc-dialog {
+	z-index: 10000000;
 }
 </style>

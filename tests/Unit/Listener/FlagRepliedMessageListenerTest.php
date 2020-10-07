@@ -37,10 +37,9 @@ use OCA\Mail\Listener\FlagRepliedMessageListener;
 use OCA\Mail\Model\IMessage;
 use OCA\Mail\Model\NewMessageData;
 use OCA\Mail\Model\RepliedMessageData;
-use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\EventDispatcher\Event;
-use OCP\ILogger;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
 
 class FlagRepliedMessageListenerTest extends TestCase {
 
@@ -53,7 +52,7 @@ class FlagRepliedMessageListenerTest extends TestCase {
 	/** @var MessageMapper|MockObject */
 	private $messageMapper;
 
-	/** @var ILogger|MockObject */
+	/** @var LoggerInterface|MockObject */
 	private $logger;
 
 	/** @var FlagRepliedMessageListener */
@@ -65,7 +64,7 @@ class FlagRepliedMessageListenerTest extends TestCase {
 		$this->imapClientFactory = $this->createMock(IMAPClientFactory::class);
 		$this->mailboxMapper = $this->createMock(MailboxMapper::class);
 		$this->messageMapper = $this->createMock(MessageMapper::class);
-		$this->logger = $this->createMock(ILogger::class);
+		$this->logger = $this->createMock(LoggerInterface::class);
 
 		$this->listener = new FlagRepliedMessageListener(
 			$this->imapClientFactory,
@@ -105,43 +104,7 @@ class FlagRepliedMessageListenerTest extends TestCase {
 		$this->mailboxMapper->expects($this->never())
 			->method('find');
 		$this->logger->expects($this->never())
-			->method('logException');
-
-		$this->listener->handle($event);
-	}
-
-	public function testHandleMessageSentEventMailboxDoesNotExist(): void {
-		/** @var Account|MockObject $account */
-		$account = $this->createMock(Account::class);
-		/** @var NewMessageData|MockObject $newMessageData */
-		$newMessageData = $this->createMock(NewMessageData::class);
-		/** @var RepliedMessageData|MockObject $repliedMessageData */
-		$repliedMessageData = $this->createMock(RepliedMessageData::class);
-		/** @var IMessage|MockObject $message */
-		$message = $this->createMock(IMessage::class);
-		/** @var \Horde_Mime_Mail|MockObject $mail */
-		$mail = $this->createMock(\Horde_Mime_Mail::class);
-		$draft = new Message();
-		$draft->setUid(123);
-		$event = new MessageSentEvent(
-			$account,
-			$newMessageData,
-			$repliedMessageData,
-			$draft,
-			$message,
-			$mail
-		);
-		$repliedMessageData->expects($this->once())
-			->method('getFolderId')
-			->willReturn('INBOX');
-		$this->mailboxMapper->expects($this->once())
-			->method('find')
-			->with($account, 'INBOX')
-			->willThrowException(new DoesNotExistException(''));
-		$this->messageMapper->expects($this->never())
-			->method('addFlag');
-		$this->logger->expects($this->once())
-			->method('logException');
+			->method('error');
 
 		$this->listener->handle($event);
 	}
@@ -167,16 +130,15 @@ class FlagRepliedMessageListenerTest extends TestCase {
 			$message,
 			$mail
 		);
-		$repliedMessageData->expects($this->once())
-			->method('getFolderId')
-			->willReturn('INBOX');
-		$repliedMessageData->expects($this->once())
-			->method('getId')
-			->willReturn(321);
+		$messageInReply = new Message();
+		$messageInReply->setUid(321);
+		$messageInReply->setMailboxId(654);
+		$repliedMessageData->method('getMessage')
+			->willReturn($messageInReply);
 		$mailbox = new Mailbox();
 		$this->mailboxMapper->expects($this->once())
-			->method('find')
-			->with($account, 'INBOX')
+			->method('findById')
+			->with(654)
 			->willReturn($mailbox);
 		$client = $this->createMock(\Horde_Imap_Client_Socket::class);
 		$this->imapClientFactory->expects($this->once())
@@ -192,7 +154,7 @@ class FlagRepliedMessageListenerTest extends TestCase {
 				\Horde_Imap_Client::FLAG_ANSWERED
 			);
 		$this->logger->expects($this->never())
-			->method('logException');
+			->method('error');
 
 		$this->listener->handle($event);
 	}

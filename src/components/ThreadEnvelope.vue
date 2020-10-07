@@ -21,20 +21,27 @@
 
 <template>
 	<div>
-		<div class="icon-mail">
+		<div class="envelope--header">
+			<Avatar v-if="envelope.from && envelope.from[0]"
+				:email="envelope.from[0].email"
+				:display-name="envelope.from[0].label"
+				:disable-tooltip="true"
+				:size="40" />
 			<router-link
 				:to="route"
 				event=""
 				class="left"
 				@click.native.prevent="$emit('toggleExpand', $event)">
-				<span class="sender">{{ envelope.from[0].label }}</span>
-				<span class="preview">
-					<!-- TODO: instead of subject it should be shown the first line of the message #2666 -->
-					{{ envelope.subject }}
-				</span>
+				<span class="sender">{{ envelope.from && envelope.from[0] ? envelope.from[0].label : '' }}</span>
+				<div class="subject">
+					<span class="preview">
+						<!-- TODO: instead of subject it should be shown the first line of the message #2666 -->
+						{{ envelope.subject }}
+					</span>
+				</div>
 			</router-link>
 			<div class="right">
-				<Moment :timestamp="envelope.dateInt" />
+				<Moment class="timestamp" :timestamp="envelope.dateInt" />
 				<div
 					class="button"
 					:class="{
@@ -75,6 +82,12 @@
 						@click="onShowSource">
 						{{ t('mail', 'View source') }}
 					</ActionButton>
+					<ActionLink v-if="debug"
+						icon="icon-download"
+						:download="threadingFileName"
+						:href="threadingFile">
+						{{ t('mail', 'Download thread data for debugging') }}
+					</ActionLink>
 					<ActionButton icon="icon-delete" @click.prevent="onDelete">
 						{{ t('mail', 'Delete') }}
 					</ActionButton>
@@ -95,28 +108,34 @@
 			:data="error" />
 	</div>
 </template>
-
 <script>
 import Actions from '@nextcloud/vue/dist/Components/Actions'
 import ActionButton from '@nextcloud/vue/dist/Components/ActionButton'
+import ActionLink from '@nextcloud/vue/dist/Components/ActionLink'
 import axios from '@nextcloud/axios'
 import Error from './Error'
 import Loading from './Loading'
 import logger from '../logger'
 import Message from './Message'
 import Moment from './Moment'
+import Avatar from './Avatar'
 import { buildRecipients as buildReplyRecipients } from '../ReplyBuilder'
 import { generateUrl } from '@nextcloud/router'
+import Modal from '@nextcloud/vue/dist/Components/Modal'
+import { Base64 } from 'js-base64'
 
 export default {
 	name: 'ThreadEnvelope',
 	components: {
 		Actions,
 		ActionButton,
+		ActionLink,
 		Error,
 		Loading,
 		Moment,
 		Message,
+		Modal,
+		Avatar,
 	},
 	props: {
 		envelope: {
@@ -139,6 +158,7 @@ export default {
 	},
 	data() {
 		return {
+			debug: window?.OC?.debug || false,
 			loading: false,
 			error: undefined,
 			message: undefined,
@@ -148,6 +168,18 @@ export default {
 		}
 	},
 	computed: {
+		threadingFile() {
+			return `data:text/plain;base64,${Base64.encode(JSON.stringify({
+				subject: this.envelope.subject,
+				messageId: this.envelope.messageId,
+				inReplyTo: this.envelope.inReplyTo,
+				references: this.envelope.references,
+				threadRootId: this.envelope.threadRootId,
+			}, null, 2))}`
+		},
+		threadingFileName() {
+			return `${this.envelope.databaseId}.json`
+		},
 		route() {
 			return {
 				name: 'message',
@@ -196,7 +228,7 @@ export default {
 				logger.debug(`message ${this.envelope.databaseId} fetched`, { message })
 
 				if (!this.envelope.flags.seen) {
-					return this.$store.dispatch('toggleEnvelopeSeen', this.envelope)
+					this.$store.dispatch('toggleEnvelopeSeen', this.envelope)
 				}
 
 				this.loading = false
@@ -285,27 +317,9 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.icon-mail {
-	background-image: var(--icon-mail-000);
-	background-position: 0 center;
-
-	display: flex;
-	flex-direction: row;
-	justify-content: space-between;
-	align-items: center;
-
-	border-bottom: 1px solid var(--color-primary-light);
-	padding-left: 30px;
-	margin-bottom: 15px;
-	horiz-align: center;
-	opacity: 0.7;
-
-	&:hover {
-		opacity: 1;
-	}
-
 	.sender {
 		font-weight: bold;
+		margin-left: 8px;
 	}
 
 	.right {
@@ -320,6 +334,50 @@ export default {
 		.app-content-list-item-menu {
 			margin-left: 4px;
 		}
+
+		.timestamp {
+			margin-right: 10px;
+			font-size: small;
+			white-space: nowrap;
+			margin-bottom: 0;
+		}
 	}
-}
+	.button {
+		color: var(--color-main-background);
+		&:not(.active):not(.primary) {
+			display: none;
+
+			&.primary {
+				background-color: var(--color-primary);
+				opacity: 1;
+				margin-bottom: 0;
+
+			}
+		}
+	}
+	.avatardiv {
+		display: inline-block;
+		margin-bottom: -23px;
+	}
+	.subject {
+		margin-left: 8px;
+		cursor: default;
+	}
+	.envelope--header {
+		display: flex;
+		padding: 10px;
+		margin-bottom: 3px;
+		border-radius: var(--border-radius);
+
+		&:hover {
+			background-color: var(--color-background-hover);
+		}
+	}
+	.left {
+		flex-grow: 1;
+	}
+	::v-deep .modal-container {
+		overflow-y: scroll !important;
+	}
+
 </style>

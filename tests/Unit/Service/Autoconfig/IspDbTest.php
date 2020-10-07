@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * @author Bernhard Scheirle <bernhard+git@scheirle.de>
  * @author Christoph Wurst <christoph@winzerhof-wurst.at>
@@ -23,18 +25,18 @@
 namespace OCA\Mail\Tests\Unit\Service\Autoconfig;
 
 use ChristophWurst\Nextcloud\Testing\TestCase;
-use OCA\Mail\Service\AutoConfig\IspDb;
-use OCP\ILogger;
+use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
 
 class IspDbtest extends TestCase {
+
+	/** @var MockObject|LoggerInterface */
 	private $logger;
 
 	protected function setUp(): void {
 		parent::setUp();
 
-		$this->logger = $this->getMockBuilder(ILogger::class)
-			->disableOriginalConstructor()
-			->getMock();
+		$this->logger = $this->createMock(LoggerInterface::class);
 	}
 
 	public function queryData() {
@@ -42,21 +44,6 @@ class IspDbtest extends TestCase {
 			['gmail.com', 'user@gmail.com',],
 			['outlook.com', 'user@outlook.com',],
 		];
-	}
-
-	/**
-	 * @dataProvider queryData
-	 *
-	 * @param string $domain
-	 * @param string $email
-	 */
-	public function testQueryRealServers(string $domain, string $email): void {
-		$this->markTestSkipped('does not work reliably');
-		return;
-
-		$ispDb = new IspDb($this->logger);
-		$result = $ispDb->query($domain, $email);
-		$this->assertContainsIspData($result);
 	}
 
 	public function fakeAutoconfigData() {

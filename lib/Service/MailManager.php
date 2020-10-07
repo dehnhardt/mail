@@ -46,6 +46,7 @@ use OCA\Mail\IMAP\MessageMapper as ImapMessageMapper;
 use OCA\Mail\Model\IMAPMessage;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\EventDispatcher\IEventDispatcher;
+use Psr\Log\LoggerInterface;
 use function array_map;
 use function array_values;
 
@@ -84,6 +85,10 @@ class MailManager implements IMailManager {
 
 	/** @var IEventDispatcher */
 	private $eventDispatcher;
+	/**
+	 * @var LoggerInterface
+	 */
+	private $logger;
 
 	public function __construct(IMAPClientFactory $imapClientFactory,
 								MailboxMapper $mailboxMapper,
@@ -91,7 +96,8 @@ class MailManager implements IMailManager {
 								FolderMapper $folderMapper,
 								ImapMessageMapper $messageMapper,
 								DbMessageMapper $dbMessageMapper,
-								IEventDispatcher $eventDispatcher) {
+								IEventDispatcher $eventDispatcher,
+								LoggerInterface $logger) {
 		$this->imapClientFactory = $imapClientFactory;
 		$this->mailboxMapper = $mailboxMapper;
 		$this->mailboxSync = $mailboxSync;
@@ -99,6 +105,7 @@ class MailManager implements IMailManager {
 		$this->imapMessageMapper = $messageMapper;
 		$this->dbMessageMapper = $dbMessageMapper;
 		$this->eventDispatcher = $eventDispatcher;
+		$this->logger = $logger;
 	}
 
 	public function getMailbox(string $uid, int $id): Mailbox {
@@ -116,7 +123,7 @@ class MailManager implements IMailManager {
 	 * @throws ServiceException
 	 */
 	public function getMailboxes(Account $account): array {
-		$this->mailboxSync->sync($account);
+		$this->mailboxSync->sync($account, $this->logger);
 
 		return $this->mailboxMapper->findAll($account);
 	}
@@ -139,7 +146,7 @@ class MailManager implements IMailManager {
 		}
 		$this->folderMapper->detectFolderSpecialUse([$folder]);
 
-		$this->mailboxSync->sync($account, true);
+		$this->mailboxSync->sync($account, $this->logger,true);
 
 		return $this->mailboxMapper->find($account, $name);
 	}
@@ -324,12 +331,19 @@ class MailManager implements IMailManager {
 		/**
 		 * 2. Pull changes into the mailbox database cache
 		 */
-		$this->mailboxSync->sync($account, true);
+		$this->mailboxSync->sync($account, $this->logger,true);
 
 		/**
 		 * 3. Return the updated object
 		 */
 		return $this->mailboxMapper->find($account, $mailbox->getName());
+	}
+
+	public function enableMailboxBackgroundSync(Mailbox $mailbox,
+												bool $syncInBackground): Mailbox {
+		$mailbox->setSyncInBackground($syncInBackground);
+
+		return $this->mailboxMapper->update($mailbox);
 	}
 
 	public function flagMessage(Account $account, string $mailbox, int $uid, string $flag, bool $value): void {
@@ -400,6 +414,11 @@ class MailManager implements IMailManager {
 			];
 		}, array_merge(...array_values($quotas)));
 
+		if (empty($storageQuotas)) {
+			// Nothing left to do, and array_merge doesn't like to be called with zero arguments.
+			return null;
+		}
+
 		/**
 		 * Deduplicate identical quota roots
 		 */
@@ -424,7 +443,7 @@ class MailManager implements IMailManager {
 		/**
 		 * 2. Get the IMAP changes into our database cache
 		 */
-		$this->mailboxSync->sync($account, true);
+		$this->mailboxSync->sync($account, $this->logger,true);
 
 		/**
 		 * 3. Return the cached object with the new ID

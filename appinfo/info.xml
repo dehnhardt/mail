@@ -12,7 +12,7 @@
 - **🙈 We’re not reinventing the wheel!** Based on the great [Horde](http://horde.org) libraries.
 - **📬 Want to host your own mail server?** We don’t have to reimplement this as you could set up [Mail-in-a-Box](https://mailinabox.email)!
 	]]></description>
-	<version>1.5.0-alpha3</version>
+	<version>1.5.0</version>
 	<licence>agpl</licence>
 	<author>Christoph Wurst</author>
 	<author>Roeland Jago Douma</author>
@@ -31,7 +31,7 @@
 	<screenshot>https://user-images.githubusercontent.com/1374172/79554966-278e1600-809f-11ea-82ea-7a0d72a2704f.png</screenshot>
 	<dependencies>
 		<php min-version="7.2" max-version="7.4" />
-		<nextcloud min-version="20" max-version="20" />
+		<nextcloud min-version="20" max-version="21" />
 	</dependencies>
 	<repair-steps>
 		<post-migration>
@@ -47,8 +47,10 @@
 		<command>OCA\Mail\Command\CreateAccount</command>
 		<command>OCA\Mail\Command\DiagnoseAccount</command>
 		<command>OCA\Mail\Command\ExportAccount</command>
+		<command>OCA\Mail\Command\ExportAccountThreads</command>
 		<command>OCA\Mail\Command\SyncAccount</command>
 		<command>OCA\Mail\Command\TrainAccount</command>
+		<command>OCA\Mail\Command\Thread</command>
 	</commands>
 	<settings>
 		<admin>OCA\Mail\Settings\AdminSettings</admin>

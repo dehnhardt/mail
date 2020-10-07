@@ -34,7 +34,6 @@ use OCA\Mail\Db\MailAccount;
 use OCA\Mail\Db\MailboxMapper;
 use OCA\Mail\IMAP\IMAPClientFactory;
 use OCA\Mail\IMAP\MessageMapper;
-use OCA\Mail\Model\IMAPMessage;
 use OCA\Mail\Model\Message;
 use OCA\Mail\Model\NewMessageData;
 use OCA\Mail\Model\RepliedMessageData;
@@ -42,8 +41,8 @@ use OCA\Mail\Service\MailTransmission;
 use OCA\Mail\SMTP\SmtpClientFactory;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Files\Folder;
-use OCP\ILogger;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
 
 class MailTransmissionTest extends TestCase {
 
@@ -68,7 +67,7 @@ class MailTransmissionTest extends TestCase {
 	/** @var MessageMapper|MockObject */
 	private $messageMapper;
 
-	/** @var ILogger|MockObject */
+	/** @var LoggerInterface|MockObject */
 	private $logger;
 
 	/** @var MailTransmission */
@@ -84,7 +83,7 @@ class MailTransmissionTest extends TestCase {
 		$this->eventDispatcher = $this->createMock(IEventDispatcher::class);
 		$this->mailboxMapper = $this->createMock(MailboxMapper::class);
 		$this->messageMapper = $this->createMock(MessageMapper::class);
-		$this->logger = $this->createMock(ILogger::class);
+		$this->logger = $this->createMock(LoggerInterface::class);
 
 		$this->transmission = new MailTransmission(
 			$this->userFolder,
@@ -194,22 +193,15 @@ class MailTransmissionTest extends TestCase {
 		$account->method('getMailAccount')->willReturn($mailAccount);
 		$messageData = NewMessageData::fromRequest($account, 'to@d.com', '', '', 'sub', 'bod');
 		$folderId = 'INBOX';
-		$repliedMessageId = 321;
-		$replyData = new RepliedMessageData($account, $folderId, $repliedMessageId);
+		$repliedMessageUid = 321;
+		$messageInReply = new \OCA\Mail\Db\Message();
+		$messageInReply->setUid($repliedMessageUid);
+		$messageInReply->setMessageId('message@server');
+		$replyData = new RepliedMessageData($account, $messageInReply);
 		$message = new Message();
 		$account->expects($this->once())
 			->method('newMessage')
 			->willReturn($message);
-		$client = $this->createMock(Horde_Imap_Client_Socket::class);
-		$this->imapClientFactory->expects($this->once())
-			->method('getClient')
-			->with($account)
-			->willReturn($client);
-		$repliedMessage = $this->createMock(IMAPMessage::class);
-		$this->messageMapper->expects($this->once())
-			->method('find')
-			->with($client, $folderId, $repliedMessageId)
-			->willReturn($repliedMessage);
 		$transport = $this->createMock(Horde_Mail_Transport::class);
 		$this->smtpClientFactory->expects($this->once())
 			->method('create')

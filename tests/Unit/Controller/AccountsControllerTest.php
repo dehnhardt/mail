@@ -32,6 +32,7 @@ use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Contracts\IMailTransmission;
 use OCA\Mail\Controller\AccountsController;
 use OCA\Mail\Db\Mailbox;
+use OCA\Mail\Db\Message;
 use OCA\Mail\Exception\ClientException;
 use OCA\Mail\Model\NewMessageData;
 use OCA\Mail\Model\RepliedMessageData;
@@ -45,10 +46,10 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IL10N;
-use OCP\ILogger;
 use OCP\IRequest;
 use OCP\Security\ICrypto;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
 
 class AccountsControllerTest extends TestCase {
 
@@ -70,7 +71,7 @@ class AccountsControllerTest extends TestCase {
 	/** @var AutoConfig|MockObject */
 	private $autoConfig;
 
-	/** @var ILogger|MockObject */
+	/** @var LoggerInterface|MockObject */
 	private $logger;
 
 	/** @var IL10N|MockObject */
@@ -115,7 +116,7 @@ class AccountsControllerTest extends TestCase {
 			->will($this->returnArgument(0));
 		$this->userId = 'manfred';
 		$this->autoConfig = $this->createMock(AutoConfig::class);
-		$this->logger = $this->createMock(ILogger::class);
+		$this->logger = $this->createMock(LoggerInterface::class);
 		$this->l10n = $this->createMock(IL10N::class);
 		$this->crypto = $this->createMock(ICrypto::class);
 		$this->aliasesService = $this->createMock(AliasesService::class);
@@ -439,13 +440,17 @@ class AccountsControllerTest extends TestCase {
 
 	public function testSendReply() {
 		$account = $this->createMock(Account::class);
-		$folderId = 'INBOX';
+		$replyMessage = new Message();
 		$messageId = 1234;
 		$this->accountService->expects($this->once())
 			->method('find')
 			->willReturn($account);
+		$this->mailManager->expects($this->once())
+			->method('getMessage')
+			->with($this->userId, $messageId)
+			->willReturn($replyMessage);
 		$messageData = NewMessageData::fromRequest($account, 'to@d.com', '', '', 'sub', 'bod', []);
-		$replyData = new RepliedMessageData($account, $folderId, $messageId);
+		$replyData = new RepliedMessageData($account, $replyMessage);
 		$this->transmission->expects($this->once())
 			->method('sendMessage')
 			->with($messageData, $replyData, null, null);
@@ -460,7 +465,6 @@ class AccountsControllerTest extends TestCase {
 			'',
 			true,
 			null,
-			base64_encode($folderId),
 			$messageId,
 			[],
 			null);

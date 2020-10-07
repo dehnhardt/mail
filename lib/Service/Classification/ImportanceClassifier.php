@@ -37,7 +37,7 @@ use OCA\Mail\Exception\ServiceException;
 use OCA\Mail\Service\Classification\FeatureExtraction\CompositeExtractor;
 use OCA\Mail\Support\PerformanceLogger;
 use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\ILogger;
+use Psr\Log\LoggerInterface;
 use Rubix\ML\Classifiers\GaussianNB;
 use Rubix\ML\CrossValidation\Reports\MulticlassBreakdown;
 use Rubix\ML\Datasets\Labeled;
@@ -151,7 +151,7 @@ class ImportanceClassifier {
 	 *
 	 * @param Account $account
 	 */
-	public function train(Account $account, ILogger $logger): void {
+	public function train(Account $account, LoggerInterface $logger): void {
 		$perf = $this->performanceLogger->start('importance classifier training');
 		$incomingMailboxes = $this->getIncomingMailboxes($account);
 		$logger->debug('found ' . count($incomingMailboxes) . ' incoming mailbox(es)');
@@ -205,8 +205,8 @@ class ImportanceClassifier {
 				$logger
 			);
 		} catch (ClassifierTrainingException $e) {
-			$logger->logException($e, [
-				'message' => 'Importance classifier training failed: ' . $e->getMessage(),
+			$logger->error('Importance classifier training failed: ' . $e->getMessage(), [
+				'exception' => $e,
 			]);
 			$perf->end();
 			return;
@@ -351,7 +351,7 @@ class ImportanceClassifier {
 	private function validateClassifier(Estimator $estimator,
 										array $trainingSet,
 										array $validationSet,
-										ILogger $logger): Classifier {
+										LoggerInterface $logger): Classifier {
 		$predictedValidationLabel = $estimator->predict(Unlabeled::build(
 			array_column($validationSet, 'features')
 		));
@@ -361,9 +361,9 @@ class ImportanceClassifier {
 			$predictedValidationLabel,
 			array_column($validationSet, 'label')
 		);
-		$recallImportant = $report['classes'][self::LABEL_IMPORTANT]['recall'];
-		$precisionImportant = $report['classes'][self::LABEL_IMPORTANT]['precision'];
-		$f1ScoreImportant = $report['classes'][self::LABEL_IMPORTANT]['f1_score'];
+		$recallImportant = $report['classes'][self::LABEL_IMPORTANT]['recall'] ?? 0;
+		$precisionImportant = $report['classes'][self::LABEL_IMPORTANT]['precision'] ?? 0;
+		$f1ScoreImportant = $report['classes'][self::LABEL_IMPORTANT]['f1_score'] ?? 0;
 
 		/**
 		 * What we care most is the percentage of messages classified as important in relation to the truly important messages
