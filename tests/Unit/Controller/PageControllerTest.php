@@ -120,11 +120,12 @@ class PageControllerTest extends TestCase {
 		$account1 = $this->createMock(Account::class);
 		$account2 = $this->createMock(Account::class);
 		$mailbox = $this->createMock(Mailbox::class);
-		$this->preferences->expects($this->exactly(2))
+		$this->preferences->expects($this->exactly(3))
 			->method('getPreference')
 			->willReturnMap([
 				['external-avatars', 'true', 'true'],
 				['collect-data', 'true', 'true'],
+				['account-settings', json_encode([]), json_encode([])],
 			]);
 		$this->accountService->expects($this->once())
 			->method('findByUserId')
@@ -133,14 +134,16 @@ class PageControllerTest extends TestCase {
 				$account1,
 				$account2,
 			]));
-		$this->mailManager->expects($this->at(0))
+		$this->mailManager->expects($this->exactly(2))
 			->method('getMailboxes')
-			->with($account1)
-			->willReturn([$mailbox]);
-		$this->mailManager->expects($this->at(1))
-			->method('getMailboxes')
-			->with($account2)
-			->willReturn([]);
+			->withConsecutive(
+				[$account1],
+				[$account2]
+			)
+			->willReturnOnConsecutiveCalls(
+				[$mailbox],
+				[]
+			);
 		$account1->expects($this->once())
 			->method('jsonSerialize')
 			->will($this->returnValue([
@@ -193,10 +196,12 @@ class PageControllerTest extends TestCase {
 		$this->userSession->expects($this->once())
 			->method('getUser')
 			->will($this->returnValue($user));
-		$this->config->expects($this->once())
+		$this->config
 			->method('getSystemValue')
-			->with('debug', false)
-			->will($this->returnValue(true));
+			->willReturnMap([
+				['debug', false, true],
+				['app.mail.attachment-size-limit', 0, 123],
+			]);
 		$this->config->expects($this->once())
 			->method('getAppValue')
 			->with('mail', 'installed_version')
@@ -212,20 +217,22 @@ class PageControllerTest extends TestCase {
 			->with($this->equalTo('jane'), $this->equalTo('settings'),
 				$this->equalTo('email'), $this->equalTo(''))
 			->will($this->returnValue('jane@doe.cz'));
-		$this->initialState->expects($this->at(0))
+		$this->initialState->expects($this->exactly(2))
 			->method('provideInitialState')
-			->with('mail', 'prefill_displayName', 'Jane Doe');
-		$this->initialState->expects($this->at(1))
-			->method('provideInitialState')
-			->with('mail', 'prefill_email', 'jane@doe.cz');
+			->withConsecutive(
+				['mail', 'prefill_displayName', 'Jane Doe'],
+				['mail', 'prefill_email', 'jane@doe.cz']
+			);
 
 		$expected = new TemplateResponse($this->appName, 'index',
 			[
 				'debug' => true,
+				'attachment-size-limit' => 123,
 				'external-avatars' => 'true',
 				'app-version' => '1.2.3',
 				'accounts' => base64_encode(json_encode($accountsJson)),
-				'collect-data' => 'true'
+				'collect-data' => 'true',
+				'account-settings' => base64_encode(json_encode([])),
 			]);
 		$csp = new ContentSecurityPolicy();
 		$csp->addAllowedFrameDomain('\'self\'');
@@ -240,7 +247,7 @@ class PageControllerTest extends TestCase {
 		$address = 'user@example.com';
 		$uri = "mailto:$address";
 
-		$expected = new RedirectResponse('#mailto?to=' . urlencode($address));
+		$expected = new RedirectResponse('?to=' . urlencode($address));
 
 		$response = $this->controller->compose($uri);
 
@@ -252,7 +259,7 @@ class PageControllerTest extends TestCase {
 		$subject = 'hello there';
 		$uri = "mailto:$address?subject=$subject";
 
-		$expected = new RedirectResponse('#mailto?to=' . urlencode($address)
+		$expected = new RedirectResponse('?to=' . urlencode($address)
 			. '&subject=' . urlencode($subject));
 
 		$response = $this->controller->compose($uri);
@@ -265,7 +272,7 @@ class PageControllerTest extends TestCase {
 		$cc = 'other@example.com';
 		$uri = "mailto:$address?cc=$cc";
 
-		$expected = new RedirectResponse('#mailto?to=' . urlencode($address)
+		$expected = new RedirectResponse('?to=' . urlencode($address)
 			. '&cc=' . urlencode($cc));
 
 		$response = $this->controller->compose($uri);
@@ -278,7 +285,7 @@ class PageControllerTest extends TestCase {
 		$bcc = 'blind@example.com';
 		$uri = "mailto:$address?bcc=$bcc";
 
-		$expected = new RedirectResponse('#mailto?to=' . urlencode($address)
+		$expected = new RedirectResponse('?to=' . urlencode($address)
 			. '&bcc=' . urlencode($bcc));
 
 		$response = $this->controller->compose($uri);
@@ -291,7 +298,7 @@ class PageControllerTest extends TestCase {
 		$body = 'Hi!\nWhat\'s up?\nAnother line';
 		$uri = "mailto:$address?body=$body";
 
-		$expected = new RedirectResponse('#mailto?to=' . urlencode($address)
+		$expected = new RedirectResponse('?to=' . urlencode($address)
 			. '&body=' . urlencode($body));
 
 		$response = $this->controller->compose($uri);

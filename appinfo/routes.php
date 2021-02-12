@@ -35,11 +35,6 @@ return [
 			'verb' => 'GET'
 		],
 		[
-			'name' => 'page#accountSettings',
-			'url' => '/accounts/{id}/settings',
-			'verb' => 'GET'
-		],
-		[
 			'name' => 'page#mailbox',
 			'url' => '/box/{id}',
 			'verb' => 'GET'
@@ -50,6 +45,11 @@ return [
 			'verb' => 'GET'
 		],
 		[
+			'name' => 'page#draft',
+			'url' => '/box/{mailboxId}/thread/new/{draftId}',
+			'verb' => 'GET'
+		],
+		[
 			'name' => 'page#index',
 			'url' => '/',
 			'verb' => 'GET'
@@ -57,6 +57,11 @@ return [
 		[
 			'name' => 'page#compose',
 			'url' => '/compose',
+			'verb' => 'GET'
+		],
+		[
+			'name' => 'page#mailto',
+			'url' => '/mailto',
 			'verb' => 'GET'
 		],
 		[
@@ -150,6 +155,11 @@ return [
 			'verb' => 'POST'
 		],
 		[
+			'name' => 'messages#mdn',
+			'url' => '/api/messages/{id}/mdn',
+			'verb' => 'POST'
+		],
+		[
 			'name' => 'avatars#url',
 			'url' => '/api/avatars/url/{email}',
 			'verb' => 'GET'
@@ -178,6 +188,21 @@ return [
 			'name' => 'settings#deprovision',
 			'url' => '/api/settings/provisioning',
 			'verb' => 'DELETE'
+		],
+		[
+			'name' => 'trusted_senders#setTrusted',
+			'url' => '/api/trustedsenders/{email}',
+			'verb' => 'PUT'
+		],
+		[
+			'name' => 'trusted_senders#removeTrust',
+			'url' => '/api/trustedsenders/{email}',
+			'verb' => 'DELETE'
+		],
+		[
+			'name' => 'trusted_senders#list',
+			'url' => '/api/trustedsenders',
+			'verb' => 'GET'
 		],
 	],
 	'resources' => [

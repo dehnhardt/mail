@@ -27,6 +27,9 @@ use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use function array_map;
 
+/**
+ * @template-extends QBMapper<CollectedAddress>
+ */
 class CollectedAddressMapper extends QBMapper {
 
 	/**
@@ -60,6 +63,7 @@ class CollectedAddressMapper extends QBMapper {
 
 	/**
 	 * @param null|string $email
+	 * @return bool
 	 */
 	public function exists(string $userId, ?string $email) {
 		$qb = $this->db->getQueryBuilder();
@@ -79,7 +83,7 @@ class CollectedAddressMapper extends QBMapper {
 			->from($this->getTableName());
 		$result = $qb->execute();
 
-		$count = (int)$result->fetchColumn(0);
+		$count = (int)$result->fetchColumn();
 		$result->closeCursor();
 		return $count;
 	}

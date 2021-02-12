@@ -21,10 +21,6 @@
 
 <template>
 	<div class="section">
-		<h2>{{ t('mail', 'Signature') }}</h2>
-		<p class="settings-hint">
-			{{ t('mail', 'A signature is added to the text of new messages and replies.') }}
-		</p>
 		<TextEditor v-model="signature"
 			:html="true"
 			:placeholder="t('mail', 'Signature …')"
@@ -65,10 +61,8 @@ export default {
 			bus: new Vue(),
 		}
 	},
-	computed: {
-		signature() {
-			return this.account.signature ? toHtml(detect(this.account.signature)).value : ''
-		},
+	created() {
+		this.signature = this.account.signature ? toHtml(detect(this.account.signature)).value : ''
 	},
 	methods: {
 		deleteSignature() {
@@ -105,14 +99,9 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.settings-hint {
-	margin-top: -12px;
-	margin-bottom: 6px;
-	color: var(--color-text-maxcontrast);
-}
 
 .ck.ck-editor__editable_inline {
-	width: 400px;
+	width: 330px;
 	max-width: 78vw;
 	height: 100px;
 	border-radius: var(--border-radius) !important;
@@ -123,6 +112,7 @@ export default {
 .primary {
 	padding-left: 26px;
 	background-position: 6px;
+	color: var(--color-main-background);
 
 	&:after {
 		left: 14px;
@@ -139,5 +129,15 @@ export default {
 	&:focus {
 		color: var(--color-main-text);
 	}
+}
+.section {
+	display: block;
+	padding: 0;
+	margin-bottom: 23px;
+}
+</style>
+<style>
+.ck-balloon-panel {
+	z-index: 10000 !important;
 }
 </style>

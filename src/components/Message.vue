@@ -20,13 +20,24 @@
   -->
 
 <template>
-	<div :class="[message.hasHtmlBody ? 'mail-message-body mail-message-body-html' : 'mail-message-body']">
+	<div :class="[message.hasHtmlBody ? 'mail-message-body mail-message-body-html' : 'mail-message-body']"
+		role="region"
+		:aria-label="t('mail','Message body')">
 		<div v-if="message.itineraries.length > 0" class="message-itinerary">
 			<Itinerary :entries="message.itineraries" :message-id="message.messageId" />
 		</div>
-		<MessageHTMLBody v-if="message.hasHtmlBody" :url="htmlUrl" />
-		<MessageEncryptedBody v-else-if="isEncrypted" :body="message.body" :from="from" />
-		<MessagePlainTextBody v-else :body="message.body" :signature="message.signature" />
+		<MessageHTMLBody v-if="message.hasHtmlBody"
+			:url="htmlUrl"
+			:message="message"
+			:full-height="fullHeight" />
+		<MessageEncryptedBody v-else-if="isEncrypted"
+			:body="message.body"
+			:from="from"
+			:message="message" />
+		<MessagePlainTextBody v-else
+			:body="message.body"
+			:signature="message.signature"
+			:message="message" />
 		<Popover v-if="message.attachments[0]" class="attachment-popover">
 			<Actions slot="trigger">
 				<ActionButton icon="icon-public icon-attachment">
@@ -73,6 +84,11 @@ export default {
 		message: {
 			required: true,
 			type: Object,
+		},
+		fullHeight: {
+			required: false,
+			type: Boolean,
+			default: false,
 		},
 	},
 	computed: {

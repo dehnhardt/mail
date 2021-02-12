@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace OCA\Mail\Model;
 
+use finfo;
 use Horde_Mime_Part;
 use OCA\Mail\AddressList;
 use OCA\Mail\Db\LocalAttachment;
@@ -50,17 +51,14 @@ class Message implements IMessage {
 	/** @var string|null */
 	private $inReplyTo = null;
 
-	/** @var array */
+	/** @var string[] */
 	private $flags = [];
 
 	/** @var string */
 	private $content = '';
 
-	/** @var File[] */
-	private $cloudAttachments = [];
-
-	/** @var int[] */
-	private $localAttachments = [];
+	/** @var Horde_Mime_Part[] */
+	private $attachments = [];
 
 	public function __construct() {
 		$this->from = new AddressList();
@@ -81,7 +79,7 @@ class Message implements IMessage {
 	/**
 	 * Get all flags set on this message
 	 *
-	 * @return array
+	 * @return string[]
 	 */
 	public function getFlags(): array {
 		return $this->flags;
@@ -209,17 +207,33 @@ class Message implements IMessage {
 	}
 
 	/**
-	 * @return File[]
+	 * @return Horde_Mime_Part[]
 	 */
-	public function getCloudAttachments(): array {
-		return $this->cloudAttachments;
+	public function getAttachments(): array {
+		return $this->attachments;
 	}
 
 	/**
-	 * @return int[]
+	 * Adds a file that's coming from another email's attachment (typical
+	 * use case is forwarding a message)
 	 */
-	public function getLocalAttachments(): array {
-		return $this->localAttachments;
+	public function addRawAttachment(string $name, string $content): void {
+		$mime = 'application/octet-stream';
+		if (extension_loaded('fileinfo')) {
+			$finfo = new finfo(FILEINFO_MIME_TYPE);
+			$detectedMime = $finfo->buffer($content);
+			if ($detectedMime !== false) {
+				$mime = $detectedMime;
+			}
+		}
+
+		$part = new Horde_Mime_Part();
+		$part->setCharset('us-ascii');
+		$part->setDisposition('attachment');
+		$part->setName($name);
+		$part->setContents($content);
+		$part->setType($mime);
+		$this->attachments[] = $part;
 	}
 
 	/**
@@ -234,7 +248,7 @@ class Message implements IMessage {
 		$part->setName($file->getName());
 		$part->setContents($file->getContent());
 		$part->setType($file->getMimeType());
-		$this->cloudAttachments[] = $part;
+		$this->attachments[] = $part;
 	}
 
 	/**
@@ -250,6 +264,6 @@ class Message implements IMessage {
 		$part->setName($attachment->getFileName());
 		$part->setContents($file->getContent());
 		$part->setType($attachment->getMimeType());
-		$this->localAttachments[] = $part;
+		$this->attachments[] = $part;
 	}
 }

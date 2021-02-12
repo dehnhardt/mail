@@ -140,12 +140,13 @@ class IMAPMessage implements IMessage, JsonSerializable {
 			'deleted' => in_array(Horde_Imap_Client::FLAG_DELETED, $flags),
 			'draft' => in_array(Horde_Imap_Client::FLAG_DRAFT, $flags),
 			'forwarded' => in_array(Horde_Imap_Client::FLAG_FORWARDED, $flags),
-			'hasAttachments' => $this->hasAttachments($this->fetch->getStructure())
+			'hasAttachments' => $this->hasAttachments($this->fetch->getStructure()),
+			'mdnsent' => in_array(Horde_Imap_Client::FLAG_MDNSENT, $flags, true),
 		];
 	}
 
 	/**
-	 * @param array $flags
+	 * @param string[] $flags
 	 *
 	 * @throws Exception
 	 *
@@ -175,6 +176,16 @@ class IMAPMessage implements IMessage, JsonSerializable {
 
 	private function getRawInReplyTo(): string {
 		return $this->fetch->getEnvelope()->in_reply_to;
+	}
+
+	public function getDispositionNotificationTo(): string {
+		/** @var Horde_Mime_Headers $headers */
+		$headers = $this->fetch->getHeaders('mdn', Horde_Imap_Client_Data_Fetch::HEADER_PARSE);
+		$header = $headers->getHeader('disposition-notification-to');
+		if ($header === null) {
+			return '';
+		}
+		return $header->value_single;
 	}
 
 	/**
@@ -262,7 +273,14 @@ class IMAPMessage implements IMessage, JsonSerializable {
 	 * @return string
 	 */
 	public function getSubject(): string {
-		return $this->getEnvelope()->subject;
+		// Try a soft conversion first (some installations, eg: Alpine linux,
+		// have issues with the '//IGNORE' option)
+		$subject = $this->getEnvelope()->subject;
+		$utf8 = iconv('UTF-8', 'UTF-8', $subject);
+		if ($utf8 !== false) {
+			return $utf8;
+		}
+		return iconv("UTF-8", "UTF-8//IGNORE", $subject);
 	}
 
 	/**
@@ -327,11 +345,16 @@ class IMAPMessage implements IMessage, JsonSerializable {
 		$fetch_query->flags();
 		$fetch_query->size();
 		$fetch_query->imapDate();
+		$fetch_query->headers(
+			'mdn',
+			['disposition-notification-to'],
+			['cache' => true, 'peek' => true]
+		);
 
 		// $list is an array of Horde_Imap_Client_Data_Fetch objects.
 		$ids = new Horde_Imap_Client_Ids($this->messageId);
 		$headers = $this->conn->fetch($this->mailBox, $fetch_query, ['ids' => $ids]);
-		/** @var $fetch \Horde_Imap_Client_Data_Fetch */
+		/** @var Horde_Imap_Client_Data_Fetch $fetch */
 		$fetch = $headers[$this->messageId];
 		if (is_null($fetch)) {
 			throw new DoesNotExistException("This email ($this->messageId) can't be found. Probably it was deleted from the server recently. Please reload.");
@@ -434,7 +457,7 @@ class IMAPMessage implements IMessage, JsonSerializable {
 			$data['body'] = $this->getHtmlBody($id);
 		} else {
 			$mailBody = $this->htmlService->convertLinks($mailBody);
-			list($mailBody, $signature) = $this->htmlService->parseMailBody($mailBody);
+			[$mailBody, $signature] = $this->htmlService->parseMailBody($mailBody);
 			$data['body'] = $mailBody;
 			$data['signature'] = $signature;
 		}
@@ -459,6 +482,7 @@ class IMAPMessage implements IMessage, JsonSerializable {
 			'dateInt' => $this->getSentDate()->getTimestamp(),
 			'flags' => $this->getFlags(),
 			'hasHtmlBody' => $this->hasHtmlMessage,
+			'dispositionNotificationTo' => $this->getDispositionNotificationTo(),
 		];
 	}
 
@@ -589,17 +613,20 @@ class IMAPMessage implements IMessage, JsonSerializable {
 	}
 
 	/**
-	 * @return array
+	 * @return Horde_Mime_Part[]
 	 */
-	public function getCloudAttachments(): array {
+	public function getAttachments(): array {
 		throw new Exception('not implemented');
 	}
 
 	/**
-	 * @return int[]
+	 * @param string $name
+	 * @param string $content
+	 *
+	 * @return void
 	 */
-	public function getLocalAttachments(): array {
-		throw new Exception('not implemented');
+	public function addRawAttachment(string $name, string $content): void {
+		throw new Exception('IMAP message is immutable');
 	}
 
 	/**
@@ -622,7 +649,7 @@ class IMAPMessage implements IMessage, JsonSerializable {
 	}
 
 	/**
-	 * @return IMessage|null
+	 * @return string|null
 	 */
 	public function getInReplyTo() {
 		throw new Exception('not implemented');
@@ -667,6 +694,7 @@ class IMAPMessage implements IMessage, JsonSerializable {
 		$msg->setFlagNotjunk(in_array(Horde_Imap_Client::FLAG_NOTJUNK, $flags, true));
 		$msg->setFlagImportant(false);
 		$msg->setFlagAttachments(false);
+		$msg->setFlagMdnsent(in_array(Horde_Imap_Client::FLAG_MDNSENT, $flags, true));
 
 		return $msg;
 	}

@@ -5,7 +5,8 @@
 			v-else-if="error"
 			:error="error && error.message ? error.message : t('mail', 'Not found')"
 			:message="errorMessage"
-			:data="error" />
+			:data="error"
+			role="alert" />
 		<Composer
 			v-else
 			:from-account="composerData.accountId"
@@ -25,6 +26,7 @@
 import AppContentDetails from '@nextcloud/vue/dist/Components/AppContentDetails'
 import Axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
+import { showWarning } from '@nextcloud/dialogs'
 import { translate as t } from '@nextcloud/l10n'
 
 import { buildForwardSubject, buildReplySubject, buildRecipients as buildReplyRecipients } from '../ReplyBuilder'
@@ -52,6 +54,7 @@ export default {
 			originalBody: undefined,
 			errorMessage: '',
 			error: undefined,
+			newDraftId: undefined,
 		}
 	},
 	computed: {
@@ -101,6 +104,21 @@ export default {
 						originalBody: this.originalBody,
 						replyTo: message,
 					}
+				} else if (this.$route.params.threadId === 'asNew') {
+					logger.debug('composing as new', { original: this.original })
+
+					if (this.original.attachments.length) {
+						showWarning(t('mail', 'Attachments were not copied. Please add them manually.'))
+					}
+
+					return {
+						accountId: message.accountId,
+						to: message.to,
+						cc: message.cc,
+						subject: message.subject,
+						body: this.originalBody,
+						originalBody: this.originalBody,
+					}
 				} else {
 					// forward
 					return {
@@ -140,12 +158,17 @@ export default {
 			// `saveDraft` replaced the current URL with the updated draft UID
 			// in that case we don't really start a new draft but just keep the
 			// URL consistent, hence not loading anything
-			if (to.name === 'message' && this.draft && to.params.draftId === parseInt(this.draft.databaseId, 10)) {
+			if (to.name === 'message' && this.draft
+				&& (
+					to.params.draftId === parseInt(this.draft.databaseId, 10)
+					|| to.params.draftId === this.newDraftId
+				)
+			) {
 				logger.debug('detected navigation to current (new) draft UID, not reloading')
 				return
 			}
 			logger.debug('the  draft ID changed, we have to fetch the draft', {
-				currentId: this.draft.databaseId,
+				currentId: this?.draft?.databaseId ?? 'no draft currently loaded',
 				newId: to.params.draftId,
 			})
 
@@ -237,7 +260,7 @@ export default {
 				if (message.hasHtmlBody) {
 					logger.debug('original message has HTML body')
 					const resp = await Axios.get(
-						generateUrl('/apps/mail/api/messages/{id}/html', {
+						generateUrl('/apps/mail/api/messages/{id}/html?plain=true', {
 							id,
 						})
 					)
@@ -266,15 +289,41 @@ export default {
 				body: data.isHtml ? data.body.value : toPlain(data.body).value,
 			}
 			const { id } = await saveDraft(data.account, dataForServer)
+
+			// Remove old draft envelope
+			this.$store.commit('removeEnvelope', { id: data.draftId })
+			this.$store.commit('removeMessage', { id: data.draftId })
+
+			// Fetch new draft envelope
+			await this.$store.dispatch('fetchEnvelope', id)
+
+			// Update route to new draft (actual redirect will be skipped)
+			const account = this.$store.getters.getAccount(data.account)
+			if (parseInt(this.$route.params.mailboxId, 10) === account.draftsMailboxId) {
+				this.newDraftId = id
+				this.$router.replace({
+					to: 'message',
+					params: {
+						mailboxId: this.$route.params.mailboxId,
+						threadId: this.$route.params.threadId,
+						draftId: id,
+					},
+				})
+			}
+
 			return id
 		},
-		sendMessage(data) {
+		async sendMessage(data) {
 			logger.debug('sending message', { data })
 			const dataForServer = {
 				...data,
 				body: data.isHtml ? data.body.value : toPlain(data.body).value,
 			}
-			return sendMessage(data.account, dataForServer)
+			await sendMessage(data.account, dataForServer)
+
+			// Remove old draft envelope
+			this.$store.commit('removeEnvelope', { id: data.draftId })
+			this.$store.commit('removeMessage', { id: data.draftId })
 		},
 	},
 }

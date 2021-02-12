@@ -28,6 +28,8 @@ use OCA\Mail\AddressList;
 
 /**
  * Simple data class that wraps the request data of a new message or reply
+ *
+ * @psalm-immutable
  */
 class NewMessageData {
 
@@ -46,7 +48,7 @@ class NewMessageData {
 	/** @var string */
 	private $subject;
 
-	/** @var string|null */
+	/** @var string */
 	private $body;
 
 	/** @var array */
@@ -55,24 +57,29 @@ class NewMessageData {
 	/** @var bool */
 	private $isHtml;
 
+	/** @var bool */
+	private $isMdnRequested;
+
 	/**
 	 * @param Account $account
 	 * @param AddressList $to
 	 * @param AddressList $cc
 	 * @param AddressList $bcc
 	 * @param string $subject
-	 * @param string|null $body
+	 * @param string $body
 	 * @param array $attachments
-	 * @package bool $isHtml
+	 * @param bool $isHtml
+	 * @param bool $isMdnRequested
 	 */
 	public function __construct(Account $account,
 								AddressList $to,
 								AddressList $cc,
 								AddressList $bcc,
 								string $subject,
-								string $body = null,
+								string $body,
 								array $attachments = [],
-								bool $isHtml = true) {
+								bool $isHtml = true,
+								bool $isMdnRequested = false) {
 		$this->account = $account;
 		$this->to = $to;
 		$this->cc = $cc;
@@ -81,6 +88,7 @@ class NewMessageData {
 		$this->body = $body;
 		$this->attachments = $attachments;
 		$this->isHtml = $isHtml;
+		$this->isMdnRequested = $isMdnRequested;
 	}
 
 	/**
@@ -91,7 +99,8 @@ class NewMessageData {
 	 * @param string $subject
 	 * @param string $body
 	 * @param array $attachments
-	 *
+	 * @param bool $isHtml
+	 * @param bool $requestMdn
 	 * @return NewMessageData
 	 */
 	public static function fromRequest(Account $account,
@@ -99,15 +108,15 @@ class NewMessageData {
 									   string $cc = null,
 									   string $bcc = null,
 									   string $subject,
-									   string $body = null,
+									   string $body,
 									   array $attachments = [],
-									   bool $isHtml = true) {
+									   bool $isHtml = true,
+									   bool $requestMdn = false): NewMessageData {
 		$toList = AddressList::parse($to ?: '');
 		$ccList = AddressList::parse($cc ?: '');
 		$bccList = AddressList::parse($bcc ?: '');
-		$attachmentsArray = $attachments === null ? [] : $attachments;
 
-		return new self($account, $toList, $ccList, $bccList, $subject, $body, $attachmentsArray, $isHtml);
+		return new self($account, $toList, $ccList, $bccList, $subject, $body, $attachments, $isHtml, $requestMdn);
 	}
 
 	/**
@@ -146,9 +155,9 @@ class NewMessageData {
 	}
 
 	/**
-	 * @return string|null
+	 * @return string
 	 */
-	public function getBody() {
+	public function getBody(): string {
 		return $this->body;
 	}
 
@@ -161,5 +170,9 @@ class NewMessageData {
 
 	public function isHtml(): bool {
 		return $this->isHtml;
+	}
+
+	public function isMdnRequested(): bool {
+		return $this->isMdnRequested;
 	}
 }

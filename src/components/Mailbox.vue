@@ -20,8 +20,11 @@
   -->
 
 <template>
-	<Error v-if="error" :error="t('mail', 'Could not open mailbox')" message="" />
-	<Loading v-else-if="loadingEnvelopes" :hint="t('mail', 'Loading messages')" />
+	<Error v-if="error"
+		:error="t('mail', 'Could not open mailbox')"
+		message=""
+		role="alert" />
+	<Loading v-else-if="loadingEnvelopes" :hint="t('mail', 'Loading messages')" role="alert" />
 	<Loading
 		v-else-if="loadingCacheInitialization"
 		:hint="t('mail', 'Loading messages')"
@@ -54,6 +57,9 @@ import MailboxNotCachedError from '../errors/MailboxNotCachedError'
 import { matchError } from '../errors/match'
 import { wait } from '../util/wait'
 import EmptyMailboxSection from './EmptyMailboxSection'
+import { showError } from '@nextcloud/dialogs'
+import NoTrashMailboxConfiguredError
+	from '../errors/NoTrashMailboxConfiguredError'
 
 export default {
 	name: 'Mailbox',
@@ -136,6 +142,9 @@ export default {
 		},
 		mailbox() {
 			this.loadEnvelopes()
+				.then(() => {
+					this.sync(false)
+				})
 		},
 		searchQuery() {
 			this.loadEnvelopes()
@@ -148,7 +157,10 @@ export default {
 		this.loadMailboxInterval = setInterval(this.loadMailbox, 60000)
 	},
 	async mounted() {
-		return await this.loadEnvelopes()
+		this.loadEnvelopes()
+			.then(() => {
+				this.sync(false)
+			})
 	},
 	destroyed() {
 		this.bus.$off('loadMore', this.onScroll)
@@ -161,12 +173,7 @@ export default {
 			this.loadingCacheInitialization = true
 			this.error = false
 
-			this.$store
-				.dispatch('syncEnvelopes', {
-					mailboxId: this.mailbox.databaseId,
-					query: this.searchQuery,
-					init: true,
-				})
+			this.sync(true)
 				.then(() => {
 					this.loadingCacheInitialization = false
 
@@ -272,7 +279,7 @@ export default {
 				this.loadingMore = false
 			}
 		},
-		handleShortcut(e) {
+		async handleShortcut(e) {
 			const envelopes = this.envelopes
 			const currentId = parseInt(this.$route.params.threadId, 10)
 
@@ -318,16 +325,25 @@ export default {
 			case 'del':
 				logger.debug('deleting', { env })
 				this.onDelete(env.databaseId)
-				this.$store
-					.dispatch('deleteMessage', {
+				try {
+					await this.$store.dispatch('deleteMessage', {
 						id: env.databaseId,
 					})
-					.catch((error) =>
-						logger.error('could not delete envelope', {
-							env,
-							error,
-						})
-					)
+				} catch (error) {
+					logger.error('could not delete envelope', {
+						env,
+						error,
+					})
+
+					showError(await matchError(error, {
+						[NoTrashMailboxConfiguredError.getName()]() {
+							return t('mail', 'No trash mailbox configured')
+						},
+						default() {
+							return t('mail', 'Could not delete message')
+						},
+					}))
+				}
 
 				break
 			case 'flag':
@@ -341,14 +357,12 @@ export default {
 				break
 			case 'refresh':
 				logger.debug('syncing envelopes via shortkey')
-				if (!this.refreshing) {
-					this.sync()
-				}
+				this.sync(false)
 
 				break
 			case 'unseen':
 				logger.debug('marking message as seen/unseen via shortkey', { env })
-				this.$store.dispatch('toggleEnvelopeSeen', env).catch((error) =>
+				this.$store.dispatch('toggleEnvelopeSeen', { envelope: env }).catch((error) =>
 					logger.error('could not mark envelope as seen/unseen via shortkey', {
 						env,
 						error,
@@ -359,15 +373,19 @@ export default {
 				logger.warn('shortcut ' + e.srcKey + ' is unknown. ignoring.')
 			}
 		},
-		async sync() {
-			logger.debug("mailbox sync'ing")
-			this.refreshing = true
+		async sync(init = false) {
+			logger.debug('syncing mailbox')
+			if (this.refreshing) {
+				logger.debug("already sync'ing, aborting")
+				return
+			}
 
+			this.refreshing = true
 			try {
 				await this.$store.dispatch('syncEnvelopes', {
-					accountId: this.account.accountId,
 					mailboxId: this.mailbox.databaseId,
 					query: this.searchQuery,
+					init,
 				})
 			} catch (error) {
 				matchError(error, {
@@ -380,6 +398,7 @@ export default {
 				})
 			} finally {
 				this.refreshing = false
+				logger.debug("finished sync'ing mailbox")
 			}
 		},
 		onDelete(id) {
@@ -425,12 +444,7 @@ export default {
 				return
 			}
 			try {
-				await this.$store.dispatch('syncEnvelopes', {
-					mailboxId: this.$route.params.mailboxId,
-					query: this.searchQuery,
-				})
-
-				logger.debug("Mailbox sync'ed in background")
+				await this.sync(false)
 			} catch (error) {
 				logger.error('Background sync failed: ' + error.message, { error })
 			}

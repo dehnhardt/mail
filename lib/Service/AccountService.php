@@ -31,7 +31,6 @@ use OCA\Mail\Db\MailAccount;
 use OCA\Mail\Db\MailAccountMapper;
 use OCA\Mail\Exception\ClientException;
 use OCA\Mail\Exception\ServiceException;
-use OCA\mail\lib\Service\Quota;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\BackgroundJob\IJobList;
 use function array_map;
@@ -150,14 +149,8 @@ class AccountService {
 	 */
 	public function updateSignature(int $id, string $uid, string $signature = null): void {
 		$account = $this->find($uid, $id);
-		if ($account === null) {
-			throw new ServiceException('Account does not exist or user is not permitted to change it');
-		}
 		$mailAccount = $account->getMailAccount();
 		$mailAccount->setSignature($signature);
 		$this->mapper->save($mailAccount);
-	}
-
-	public function getQuota(): Quota {
 	}
 }

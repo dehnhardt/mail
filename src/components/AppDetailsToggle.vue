@@ -35,17 +35,29 @@ export default {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .toggle {
 	position: fixed;
-	display: inline-block;
-	left: 0;
 	width: 44px;
 	height: 44px;
-	z-index: 1500;
+	padding: 14px;
 	cursor: pointer;
+	opacity: .6;
+	font-size: 16px;
+	line-height: 17px;
 	transform: rotate(180deg);
 	background-color: var(--color-main-background);
-	opacity: 1;
+	z-index: 1100; // needs to be above the main content(1000) and below the navigation(1800)
+
+	&:active,
+	&:hover,
+	&:focus {
+		opacity: 1;
+	}
+
+	// Hide app navigation toggle in case we are on mobile and have the back arrow visible
+	&::v-deep + .app-navigation--close .app-navigation-toggle {
+		display: none;
+	}
 }
 </style>

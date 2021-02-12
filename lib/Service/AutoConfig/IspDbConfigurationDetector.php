@@ -89,7 +89,7 @@ class IspDbConfigurationDetector {
 	public function detectImapAndSmtp(string $email, string $password, string $name) {
 		// splitting the email address into user and host part
 		// TODO: use horde libs for email address parsing
-		list(, $host) = explode("@", $email);
+		[, $host] = explode("@", $email);
 
 		$ispdb = $this->ispDb->query($host, $email);
 
@@ -156,7 +156,7 @@ class IspDbConfigurationDetector {
 		if ($imap['username'] === '%EMAILADDRESS%') {
 			$user = $email;
 		} elseif ($imap['username'] === '%EMAILLOCALPART%') {
-			list($user,) = explode("@", $email);
+			[$user,] = explode("@", $email);
 		} elseif (empty($imap['username'])) {
 			$this->logger->info("imap username is either an invalid placeholder or is empty");
 			return null;
@@ -203,14 +203,15 @@ class IspDbConfigurationDetector {
 	 * @param MailAccount $account
 	 * @param string $email
 	 * @param string $password
-	 * @return boolean
+	 *
+	 * @return bool|null
 	 */
-	private function testSmtpConfiguration(array $smtp, MailAccount $account, string $email, string $password) {
+	private function testSmtpConfiguration(array $smtp, MailAccount $account, string $email, string $password): ?bool {
 		try {
 			if ($smtp['username'] === '%EMAILADDRESS%') {
 				$user = $email;
 			} elseif ($smtp['username'] === '%EMAILLOCALPART%') {
-				list($user,) = explode("@", $email);
+				[$user,] = explode("@", $email);
 			} elseif (empty($smtp['username'])) {
 				$this->logger->info("smtp username is either an unknown placeholder or is empty");
 				return null;

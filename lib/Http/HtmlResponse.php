@@ -32,22 +32,57 @@ class HtmlResponse extends Response {
 	/** @var string */
 	private $content;
 
-	private $injectedStyles = <<<EOF
-* { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Cantarell, Ubuntu, 'Helvetica Neue', Arial, 'Noto Color Emoji', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }
-EOF;
+	/** @var bool */
+	private $plain;
 
+	/** @var string|null */
+	private $nonce;
 
-	public function __construct(string $content) {
+	/** @var string|null */
+	private $scriptUrl;
+
+	/**
+	 * @param string $content message html content
+	 * @param bool $plain do not inject scripts if true (default=false)
+	 * @param string|null $nonce
+	 * @param string|null $scriptUrl
+	 */
+	private function __construct(string $content,
+								 bool $plain = false,
+								 string $nonce = null,
+								 string $scriptUrl = null) {
 		parent::__construct();
 		$this->content = $content;
+		$this->plain = $plain;
+		$this->nonce = $nonce;
+		$this->scriptUrl = $scriptUrl;
+	}
+
+	public static function plain(string $content): self {
+		return new self($content, true);
+	}
+
+	public static function withResizer(string $content,
+									   string $nonce,
+									   string $scriptUrl): self {
+		return new self(
+			$content,
+			false,
+			$nonce,
+			$scriptUrl
+		);
 	}
 
 	/**
-	 * Simply sets the headers and returns the file contents
+	 * Inject scripts if not plain and return message html content.
 	 *
-	 * @return string the file contents
+	 * @return string message html content
 	 */
 	public function render(): string {
-		return '<style>' . $this->injectedStyles . '</style>' . $this->content;
+		if ($this->plain) {
+			return $this->content;
+		}
+
+		return '<script nonce="' . $this->nonce . '" src="' . $this->scriptUrl . '"></script>' . $this->content;
 	}
 }

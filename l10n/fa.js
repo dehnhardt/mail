@@ -5,7 +5,8 @@ OC.L10N.register(
     "Updating account failed: " : "به روزرسانی حساب انجام نشد:",
     "Creating account failed: " : "ایجاد حساب کاربری انجام نشد:",
     "Embedded message %s" : "پیام درج شده%s",
-    "Mails" : "نامه",
+    "Important mail" : "ایمیل‌های مهم",
+    "Mails" : "ایمیل‌ها",
     "Mail" : "ایمیل",
     "💌 A mail app for Nextcloud" : "یک برنامه نامه پستی برای Nextcloud",
     "**💌 A mail app for Nextcloud**\n\n- **🚀 Integration with other Nextcloud apps!** Currently Contacts, Calendar & Files – more to come.\n- **📥 Multiple mail accounts!** Personal and company account? No problem, and a nice unified inbox. Connect any IMAP account.\n- **🔒 Send & receive encrypted mails!** Using the great [Mailvelope](https://mailvelope.com) browser extension.\n- **🙈 We’re not reinventing the wheel!** Based on the great [Horde](http://horde.org) libraries.\n- **📬 Want to host your own mail server?** We don’t have to reimplement this as you could set up [Mail-in-a-Box](https://mailinabox.email)!" : "** 💌 برنامه نامه پستی برای Nextcloud ** - ** 🚀 ادغام با سایر برنامه های Nextcloud! ** در حال حاضر مخاطبین ، تقویم و پرونده ها - موارد دیگر .- ** accounts حساب های پستی متعدد! ** حساب شخصی و شرکت ؟ مشکلی نیست و یک صندوق ورودی خوب و یکپارچه. هر حساب IMAP را وصل کنید .- ** 🔒 نامه های رمزگذاری شده را ارسال و دریافت کنید! ** با استفاده از افزونه مرورگر [Mailvelope] بزرگ (https://mailvelope.com) .- ** 🙈 ما دوباره چرخ را اختراع نمی کنیم! * * بر اساس کتابخانه های بزرگ [هورد] (http://horde.org) .- ** 📬 آیا می خواهید میزبان سرور پست الکترونیکی خود باشید؟ ** ما نیازی نیست که مجدداً این کار را دوباره انجام دهیم زیرا می توانید [Mail- in-a-Box] (https://mailinabox.email)!",
@@ -31,6 +32,13 @@ OC.L10N.register(
     "SMTP Password" : "رمز عبور SMTP",
     "Save" : "ذخیره",
     "Connect" : "اتصال",
+    "Account settings" : "تنظیمات حساب",
+    "Change name" : "تغییر نام",
+    "Signature" : "امضا",
+    "A signature is added to the text of new messages and replies." : "یک امضا به متن پیامها و پاسخ های جدید اضافه می شود.",
+    "Writing mode" : "حالت نوشتن",
+    "Preferred writing mode for new messages and replies." : "حالت نوشتن برای پیام ها و پاسخ های جدید ترجیح داده شده است.",
+    "Mail server" : "سرور پست الکترونیکی",
     "Add mail account" : "حساب کاربری پست الکترونیکی اضافه کنید",
     "Use Gravatar and favicon avatars" : "از آواتارهای Gravatar و Favicon استفاده کنید",
     "Register as application for mail links" : "به عنوان برنامه برای پیوندهای نامه ثبت نام کنید",
@@ -59,25 +67,25 @@ OC.L10N.register(
     "Send" : "ارسال",
     "Uploading {percent}% …" : "در حال بارگیری {درصد… ...",
     "Choose a file to add as attachment" : "پرونده ای را برای اضافه کردن به عنوان پیوست انتخاب کنید",
-    "Writing mode" : "حالت نوشتن",
-    "Preferred writing mode for new messages and replies." : "حالت نوشتن برای پیام ها و پاسخ های جدید ترجیح داده شده است.",
     "Plain text" : "متن ساده",
     "Rich text" : "متن غنی",
-    "No messages in this folder" : "هیچ پیامی در این پوشه وجود ندارد",
     "Draft: " : "پیش نویس:",
-    "Mark unread" : "علامت گذاری به عنوان خوانده نشده",
-    "Mark read" : "علامت گذاری به عنوان خوانده شده",
-    "Unselect" : "لغو انتخاب",
-    "Select" : "انتخاب",
-    "Delete" : "حذف",
     "Blind copy recipients only" : "فقط گیرندگان کپی کور",
     "Report this bug" : "گزارش این اشکال",
     "Could not open mailbox" : "صندوق پستی امکان پذیر نیست",
     "Loading messages" : "بارگیری پیام ها",
     "Indexing your messages. This can take a bit longer for larger mailboxes." : "نمایه سازی پیام های شما این می تواند کمی برای صندوق های پستی بزرگتر کمی طولانی شود.",
-    "Important" : "مهم",
+    "Choose" : "انتخاب کنید",
     "Favorites" : "علاقه مندی ها",
     "Other" : "دیگر",
+    "Reply to sender only" : "فقط به فرستنده پاسخ دهید",
+    "Forward" : "فرستادن",
+    "Mark unread" : "علامت گذاری به عنوان خوانده نشده",
+    "Mark read" : "علامت گذاری به عنوان خوانده شده",
+    "Unselect" : "لغو انتخاب",
+    "Select" : "انتخاب",
+    "Move" : "انتقال",
+    "Delete" : "حذف",
     "Attachments" : "پیوست‌ها",
     "Import into calendar" : "وارد تقویم شوید",
     "Download attachment" : "پیوست را بارگیری کنید",
@@ -91,31 +99,21 @@ OC.L10N.register(
     "New message" : "پیام جدید",
     "Settings" : "تنظیمات",
     "Quota" : "سهم",
-    "Account settings" : "تنظیمات حساب",
-    "Add folder" : "Add folder",
     "Saving" : "درحال ذخیره",
     "Move down" : "حرکت به پایین",
     "Remove account" : "حذف حساب کاربری",
     "Loading …" : "بارگذاری …",
     "Cancel" : "لغو",
-    "Show all folders" : "نمایش همه پوشه ها",
-    "Collapse folders" : "پوشه ها را جمع کنید",
     "Mark all as read" : "علامت همه به عنوان خوانده‌شده",
-    "Add subfolder" : "زیر پوشه را اضافه کنید",
     "Edit name" : "ویرایش نام",
     "Clear cache" : "پاک‌سازی انباره",
-    "Delete folder" : "حذف پوشه",
     "Not found" : "پیدا نشد",
     "Could not load your draft" : "پیش نویس شما بارگیری نمی شود",
     "Could not load original message" : "پیام اصلی بارگیری نشد",
     "No message selected" : "پیامی انتخاب نشده است",
-    "Signature" : "امضا",
-    "A signature is added to the text of new messages and replies." : "یک امضا به متن پیامها و پاسخ های جدید اضافه می شود.",
     "Signature …" : "امضا ...",
     "Save signature" : "ذخیره امضا",
     "Reply" : "پاسخ",
-    "Reply to sender only" : "فقط به فرستنده پاسخ دهید",
-    "Forward" : "فرستادن",
     "Import into {calendar}" : "{وارد {تقویم",
     "Event imported into {calendar}" : "{رویداد وارد شده به {تقویم",
     "Could not create event" : "رویداد ایجاد نشد",
@@ -141,8 +139,6 @@ OC.L10N.register(
     "Apply and create/update for all users" : "برای همه کاربران اعمال و ایجاد / بروزرسانی کنید",
     "Disable and un-provision existing accounts" : "غیرفعال کردن و تأمین حسابهای موجود",
     "With the settings above, the app will create account settings in the following way:" : "با تنظیمات فوق ، برنامه تنظیمات حساب را به روش زیر ایجاد می کند:",
-    "Change name" : "تغییر نام",
-    "Mail server" : "سرور پست الکترونیکی",
     "Keyboard shortcut" : "صفحه کلید",
     "Keyboard shortcuts" : "میان بر صفحه ی کلید",
     "Speed up your Mail experience with these quick shortcuts." : "تجربه ایمیل خود را با این میانبرهای سریع سرعت بخشید.",

@@ -30,7 +30,7 @@
 </template>
 
 <script>
-import CKEditor from '@ckeditor/ckeditor5-vue'
+import CKEditor from '@ckeditor/ckeditor5-vue2'
 import AlignmentPlugin from '@ckeditor/ckeditor5-alignment/src/alignment'
 import Editor from '@ckeditor/ckeditor5-editor-balloon/src/ballooneditor'
 import EssentialsPlugin from '@ckeditor/ckeditor5-essentials/src/essentials'
@@ -39,9 +39,11 @@ import BoldPlugin from '@ckeditor/ckeditor5-basic-styles/src/bold'
 import HeadingPlugin from '@ckeditor/ckeditor5-heading/src/heading'
 import ItalicPlugin from '@ckeditor/ckeditor5-basic-styles/src/italic'
 import LinkPlugin from '@ckeditor/ckeditor5-link/src/link'
+import ListStyle from '@ckeditor/ckeditor5-list/src/liststyle'
 import ParagraphPlugin from '@ckeditor/ckeditor5-paragraph/src/paragraph'
 
 import { getLanguage } from '@nextcloud/l10n'
+import DOMPurify from 'dompurify'
 
 import logger from '../logger'
 
@@ -77,15 +79,14 @@ export default {
 		const toolbar = ['undo', 'redo']
 
 		if (this.html) {
-			plugins.push(...[HeadingPlugin, AlignmentPlugin, BoldPlugin, ItalicPlugin, BlockQuotePlugin, LinkPlugin])
-			toolbar.unshift(...['heading', 'alignment', 'bold', 'italic', 'blockquote', 'link'])
+			plugins.push(...[HeadingPlugin, AlignmentPlugin, BoldPlugin, ItalicPlugin, BlockQuotePlugin, LinkPlugin, ListStyle])
+			toolbar.unshift(...['heading', 'alignment', 'bold', 'italic', 'bulletedList', 'numberedList', 'blockquote', 'link'])
 		}
 
 		return {
 			text: '',
 			ready: false,
 			editor: Editor,
-			editorInstance: {},
 			config: {
 				placeholder: this.placeholder,
 				plugins,
@@ -96,8 +97,15 @@ export default {
 			},
 		}
 	},
+	computed: {
+		sanitizedValue() {
+			return DOMPurify.sanitize(this.value, {
+				FORBID_TAGS: ['style'],
+			})
+		},
+	},
 	watch: {
-		value(newVal) {
+		sanitizedValue(newVal) {
 			// needed for reset in composer
 			this.text = newVal
 		},
@@ -113,6 +121,7 @@ export default {
 			}
 
 			try {
+				logger.debug(`loading ${language} translations for CKEditor`)
 				await import(
 					/* webpackMode: "lazy-once" */
 					/* webpackPrefetch: true */
@@ -121,7 +130,7 @@ export default {
 				)
 				this.showEditor(language)
 			} catch (error) {
-				logger.error(`could not find CKEditor translations for "${language}"`)
+				logger.error(`could not find CKEditor translations for "${language}"`, { error })
 				this.showEditor('en')
 			}
 		},
@@ -175,7 +184,7 @@ export default {
 
 			// Set value as late as possible, so the custom schema listener is used
 			// for the initial editor model
-			this.text = this.value
+			this.text = this.sanitizedValue
 
 			logger.debug(`setting TextEditor contents to <${this.text}>`)
 
@@ -196,6 +205,9 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+::v-deep a {
+	color: var(--ck-color-link-default);
+}
 ::v-deep p {
 	cursor: text;
 }

@@ -65,6 +65,7 @@ import {
 	setEnvelopeFlag,
 	syncEnvelopes,
 	fetchThread,
+	moveMessage,
 } from '../service/MessageService'
 import { createAlias, deleteAlias } from '../service/AliasService'
 import logger from '../logger'
@@ -147,6 +148,10 @@ export default {
 			return account
 		})
 	},
+	setAccountSetting({ commit, getters }, { accountId, key, value }) {
+		commit('setAccountSetting', { accountId, key, value })
+		return savePreference('account-settings', JSON.stringify(getters.getAllAccountSettings))
+	},
 	deleteAccount({ commit }, account) {
 		return deleteAccount(account.id).catch((err) => {
 			console.error('could not delete account', err)
@@ -165,6 +170,7 @@ export default {
 		console.debug(`mailbox ${prefixed} created for account ${account.id}`, { mailbox })
 		commit('addMailbox', { account, mailbox })
 		commit('expandAccount', account.id)
+		commit('setAccountSetting', { accountId: account.id, key: 'collapsed', value: false })
 		return mailbox
 	},
 	moveAccount({ commit, getters }, { account, up }) {
@@ -590,16 +596,17 @@ export default {
 			})
 		})
 	},
-	toggleEnvelopeSeen({ commit, getters }, envelope) {
+	toggleEnvelopeSeen({ commit, getters }, { envelope, seen }) {
 		// Change immediately and switch back on error
 		const oldState = envelope.flags.seen
+		const newState = seen === undefined ? !oldState : seen
 		commit('flagEnvelope', {
 			envelope,
 			flag: 'seen',
-			value: !oldState,
+			value: newState,
 		})
 
-		setEnvelopeFlag(envelope.databaseId, 'seen', !oldState).catch((e) => {
+		setEnvelopeFlag(envelope.databaseId, 'seen', newState).catch((e) => {
 			console.error('could not toggle message seen state', e)
 
 			// Revert change
@@ -646,26 +653,6 @@ export default {
 			commit('flagEnvelope', {
 				envelope,
 				flag: 'flagged',
-				value: oldState,
-			})
-		})
-	},
-	markEnvelopeSeenOrUnseen({ commit, getters }, { envelope, seenFlag }) {
-		// Change immediately and switch back on error
-		const oldState = envelope.flags.unseen
-		commit('flagEnvelope', {
-			envelope,
-			flag: 'unseen',
-			value: seenFlag,
-		})
-
-		setEnvelopeFlag(envelope.databaseId, 'unseen', seenFlag).catch((e) => {
-			console.error('could not mark message ' + envelope.uid + ' seen/unseen', e)
-
-			// Revert change
-			commit('flagEnvelope', {
-				envelope,
-				flag: 'unseen',
 				value: oldState,
 			})
 		})
@@ -722,5 +709,10 @@ export default {
 		console.debug(`mailbox ${mailbox.databaseId} renamed to ${newName}`, { mailbox })
 		commit('removeMailbox', { id: mailbox.databaseId })
 		commit('addMailbox', { account, mailbox: newMailbox })
+	},
+	async moveMessage({ commit }, { id, destMailboxId }) {
+		await moveMessage(id, destMailboxId)
+		commit('removeEnvelope', { id })
+		commit('removeMessage', { id })
 	},
 }

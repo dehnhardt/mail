@@ -32,12 +32,13 @@ use OCA\Mail\Db\Mailbox;
 use OCA\Mail\Db\MailboxMapper;
 use OCA\Mail\Db\Message;
 use OCA\Mail\Events\DraftSavedEvent;
+use OCA\Mail\Events\MessageDeletedEvent;
 use OCA\Mail\Events\MessageSentEvent;
 use OCA\Mail\IMAP\IMAPClientFactory;
-use OCA\Mail\IMAP\MailboxSync;
 use OCA\Mail\IMAP\MessageMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\EventDispatcher\Event;
+use OCP\EventDispatcher\IEventDispatcher;
 use OCP\EventDispatcher\IEventListener;
 use Psr\Log\LoggerInterface;
 
@@ -52,22 +53,22 @@ class DeleteDraftListener implements IEventListener {
 	/** @var MessageMapper */
 	private $messageMapper;
 
-	/** @var MailboxSync */
-	private $mailboxSync;
-
 	/** @var LoggerInterface */
 	private $logger;
+
+	/** @var IEventDispatcher */
+	private $eventDispatcher;
 
 	public function __construct(IMAPClientFactory $imapClientFactory,
 								MailboxMapper $mailboxMapper,
 								MessageMapper $messageMapper,
-								MailboxSync $mailboxSync,
-								LoggerInterface $logger) {
+								LoggerInterface $logger,
+								IEventDispatcher $eventDispatcher) {
 		$this->imapClientFactory = $imapClientFactory;
 		$this->mailboxMapper = $mailboxMapper;
 		$this->messageMapper = $messageMapper;
-		$this->mailboxSync = $mailboxSync;
 		$this->logger = $logger;
+		$this->eventDispatcher = $eventDispatcher;
 	}
 
 	public function handle(Event $event): void {
@@ -84,7 +85,12 @@ class DeleteDraftListener implements IEventListener {
 	 */
 	private function deleteDraft(Account $account, Message $draft): void {
 		$client = $this->imapClientFactory->getClient($account);
-		$draftsMailbox = $this->getDraftsMailbox($account);
+		try {
+			$draftsMailbox = $this->getDraftsMailbox($account);
+		} catch (DoesNotExistException $e) {
+			$this->logger->warning("Account has no draft mailbox set, can't delete the draft");
+			return;
+		}
 
 		try {
 			$this->messageMapper->addFlag(
@@ -106,40 +112,20 @@ class DeleteDraftListener implements IEventListener {
 				'exception' => $e,
 			]);
 		}
+
+		$this->eventDispatcher->dispatchTyped(
+			new MessageDeletedEvent($account, $draftsMailbox, $draft->getUid())
+		);
 	}
 
+	/**
+	 * @throws DoesNotExistException
+	 */
 	private function getDraftsMailbox(Account $account): Mailbox {
-		try {
-			return $this->mailboxMapper->findSpecial($account, 'drafts');
-		} catch (DoesNotExistException $e) {
-			$this->logger->debug('Creating drafts mailbox');
-			$this->createDraftsMailbox($account);
-			$this->logger->debug('Drafts mailbox created');
+		$draftsMailboxId = $account->getMailAccount()->getDraftsMailboxId();
+		if ($draftsMailboxId === null) {
+			throw new DoesNotExistException("No drafts mailbox ID set");
 		}
-
-		return $this->mailboxMapper->findSpecial($account, 'drafts');
-	}
-
-	private function createDraftsMailbox(Account $account): void {
-		$client = $this->imapClientFactory->getClient($account);
-
-		try {
-			// TODO: localize mailbox name
-			$client->createMailbox(
-				'Drafts',
-				[
-					'special_use' => [
-						\Horde_Imap_Client::SPECIALUSE_DRAFTS,
-					],
-				]
-			);
-		} catch (Horde_Imap_Client_Exception $e) {
-			$this->logger->error('Could not create drafts mailbox', [
-				'exception' => $e,
-			]);
-		}
-
-		// TODO: find a more elegant solution for updating the mailbox cache
-		$this->mailboxSync->sync($account, $this->logger,true);
+		return $this->mailboxMapper->findById($draftsMailboxId);
 	}
 }

@@ -4,26 +4,116 @@
 			<div v-if="selectMode" key="multiselect-header" class="multiselect-header">
 				<div class="button primary" @click.prevent="markSelectedSeenOrUnseen">
 					<span id="action-label">{{
-						areAllSelectedRead
-							? t('mail', 'Mark ' + selection.length + ' unread')
-							: t('mail', 'Mark ' + selection.length + ' read')
+						areAllSelectedRead (
+							n(
+								'mail',
+								'Mark {number} unread',
+								'Mark {number} unread',
+								selection.length,
+								{
+									number: selection.length,
+								}
+							),
+							n(
+								'mail',
+								'Mark {number} read',
+								'Mark {number} read',
+								selection.length,
+								{
+									number: selection.length,
+								}
+							)
+						)
 					}}</span>
 				</div>
 				<Actions class="app-content-list-item-menu" menu-align="right">
-					<ActionButton icon="icon-starred" @click.prevent="favoriteOrUnfavoriteAll">
+					<ActionButton icon="icon-starred"
+						:close-after-click="true"
+						@click.prevent="favoriteOrUnfavoriteAll">
 						{{
 							areAllSelectedFavorite
-								? t('mail', 'Unfavorite ' + selection.length)
-								: t('mail', 'Favorite ' + selection.length)
+								( n(
+										'mail',
+										'Unfavorite {number}',
+										'Unfavorite {number}',
+										selection.length,
+										{
+											number: selection.length,
+										}
+									),
+									n(
+										'mail',
+										'Favorite {number}',
+										'Favorite {number}',
+										selection.length,
+										{
+											number: selection.length,
+										}
+									)
+								)
 						}}
 					</ActionButton>
-					<ActionButton icon="icon-close" @click.prevent="unselectAll">
-						{{ t('mail', 'Unselect ' + selection.length) }}
+					<ActionButton icon="icon-close"
+						:close-after-click="true"
+						@click.prevent="unselectAll">
+						{{ n(
+							'mail',
+							'Unselect {number}',
+							'Unselect {number}',
+							selection.length,
+							{
+								number: selection.length,
+							}
+						) }}
 					</ActionButton>
-					<ActionButton icon="icon-delete" @click.prevent="deleteAllSelected">
-						{{ t('mail', 'Delete ' + selection.length) }}
+					<ActionButton
+						v-if="!account.isUnified"
+						icon="icon-external"
+						:close-after-click="true"
+						@click.prevent="onOpenMoveModal">
+						{{ n(
+							'mail',
+							'Move {number}',
+							'Move {number}',
+							selection.length,
+							{
+								number: selection.length,
+							}
+						) }}
+					</ActionButton>
+					<ActionButton
+						icon="icon-forward"
+						:close-after-click="true"
+						@click.prevent="forwardSelectedAsAttachment">
+						{{ n(
+							'mail',
+							'Forward {number} as attachment',
+							'Forward {number} as attachment',
+							selection.length,
+							{
+								number: selection.length,
+							}
+						) }}
+					</ActionButton>
+					<ActionButton icon="icon-delete"
+						:close-after-click="true"
+						@click.prevent="deleteAllSelected">
+						{{ n(
+							'mail',
+							'Delete {number}',
+							'Delete {number}',
+							selection.length,
+							{
+								number: selection.length,
+							}
+						) }}
 					</ActionButton>
 				</Actions>
+				<MoveModal
+					v-if="showMoveModal"
+					:account="account"
+					:envelopes="selectedEnvelopes"
+					@close="onCloseMoveModal" />
 			</div>
 		</transition>
 		<transition-group name="list">
@@ -32,14 +122,16 @@
 				class="icon-loading-small"
 				:class="{refreshing: refreshing}" />
 			<Envelope
-				v-for="env in envelopes"
+				v-for="(env, index) in envelopes"
 				:key="env.databaseId"
 				:data="env"
 				:mailbox="mailbox"
-				:selected="isEnvelopeSelected(envelopes.indexOf(env))"
+				:selected="selection.includes(env.databaseId)"
 				:select-mode="selectMode"
+				:selected-envelopes="selectedEnvelopes"
 				@delete="$emit('delete', env.databaseId)"
-				@update:selected="onEnvelopeSelectToggle(env, ...$event)" />
+				@update:selected="onEnvelopeSelectToggle(env, index, ...$event)"
+				@select-multiple="onEnvelopeSelectMultiple(env, index)" />
 			<div
 				v-if="loadMoreButton && !loadingMore"
 				:key="'list-collapse-' + searchQuery"
@@ -55,9 +147,16 @@
 <script>
 import Actions from '@nextcloud/vue/dist/Components/Actions'
 import ActionButton from '@nextcloud/vue/dist/Components/ActionButton'
+import { showError } from '@nextcloud/dialogs'
 
 import Envelope from './Envelope'
 import logger from '../logger'
+import MoveModal from './MoveModal'
+import { matchError } from '../errors/match'
+import NoTrashMailboxConfiguredError
+	from '../errors/NoTrashMailboxConfiguredError'
+import { differenceWith } from 'ramda'
+import dragEventBus from '../directives/drag-and-drop/util/dragEventBus'
 
 export default {
 	name: 'EnvelopeList',
@@ -65,6 +164,7 @@ export default {
 		Actions,
 		ActionButton,
 		Envelope,
+		MoveModal,
 	},
 	props: {
 		account: {
@@ -102,6 +202,8 @@ export default {
 	data() {
 		return {
 			selection: [],
+			showMoveModal: false,
+			lastToggledIndex: undefined,
 		}
 	},
 	computed: {
@@ -111,12 +213,32 @@ export default {
 		},
 		areAllSelectedRead() {
 			// returns false if at least one selected message has not been read yet
-			return this.selection.every((idx) => this.envelopes[idx].flags.unseen === false)
+			return this.selectedEnvelopes.every((env) => env.flags.seen === true)
 		},
 		areAllSelectedFavorite() {
 			// returns false if at least one selected message has not been favorited yet
-			return this.selection.every((idx) => this.envelopes[idx].flags.flagged === true)
+			return this.selectedEnvelopes.every((env) => env.flags.flagged === true)
 		},
+		selectedEnvelopes() {
+			return this.envelopes.filter((env) => this.selection.includes(env.databaseId))
+		},
+	},
+	watch: {
+		envelopes(newVal, oldVal) {
+			// Unselect vanished envelopes
+			const newIds = newVal.map((env) => env.databaseId)
+			this.selection = this.selection.filter((id) => newIds.includes(id))
+			differenceWith((a, b) => a.databaseId === b.databaseId, oldVal, newVal)
+				.forEach((env) => {
+					env.flags.selected = false
+				})
+		},
+	},
+	mounted() {
+		dragEventBus.$on('envelopesDropped', this.unselectAll)
+	},
+	beforeDestroy() {
+		dragEventBus.$off('envelopesDropped', this.unselectAll)
 	},
 	methods: {
 		isEnvelopeSelected(idx) {
@@ -127,34 +249,35 @@ export default {
 			return this.selection.includes(idx)
 		},
 		markSelectedSeenOrUnseen() {
-			const seenFlag = this.areAllSelectedRead
-			this.selection.forEach((envelopeId) => {
-				this.$store.dispatch('markEnvelopeSeenOrUnseen', {
-					envelope: this.envelopes[envelopeId],
-					seenFlag,
+			const seen = !this.areAllSelectedRead
+			this.selectedEnvelopes.forEach((envelope) => {
+				this.$store.dispatch('toggleEnvelopeSeen', {
+					envelope,
+					seen,
 				})
 			})
 			this.unselectAll()
 		},
 		favoriteOrUnfavoriteAll() {
 			const favFlag = !this.areAllSelectedFavorite
-			this.selection.forEach((envelopeId) => {
+			this.selectedEnvelopes.forEach((envelope) => {
 				this.$store.dispatch('markEnvelopeFavoriteOrUnfavorite', {
-					envelope: this.envelopes[envelopeId],
+					envelope,
 					favFlag,
 				})
 			})
 			this.unselectAll()
 		},
 		deleteAllSelected() {
-			this.selection.forEach((envelopeId) => {
+			this.selectedEnvelopes.forEach(async(envelope) => {
 				// Navigate if the message being deleted is the one currently viewed
-				if (this.envelopes[envelopeId].databaseId === this.$route.params.threadId) {
+				if (envelope.databaseId === this.$route.params.threadId) {
+					const index = this.envelopes.indexOf(envelope)
 					let next
-					if (envelopeId === 0) {
-						next = this.envelopes[envelopeId + 1]
+					if (index === 0) {
+						next = this.envelopes[index + 1]
 					} else {
-						next = this.envelopes[envelopeId - 1]
+						next = this.envelopes[index - 1]
 					}
 
 					if (next) {
@@ -167,30 +290,78 @@ export default {
 						})
 					}
 				}
-				logger.info(`deleting message ${this.envelopes[envelopeId].databaseId}`)
-				this.$store.dispatch('deleteMessage', {
-					id: this.envelopes[envelopeId].databaseId,
-				})
+				logger.info(`deleting message ${envelope.databaseId}`)
+				try {
+					await this.$store.dispatch('deleteMessage', {
+						id: envelope.databaseId,
+					})
+				} catch (error) {
+					showError(await matchError(error, {
+						[NoTrashMailboxConfiguredError.getName()]() {
+							return t('mail', 'No trash mailbox configured')
+						},
+						default(error) {
+							logger.error('could not delete message', error)
+							return t('mail', 'Could not delete message')
+						},
+					}))
+				}
 			})
 			this.unselectAll()
 		},
-		onEnvelopeSelectToggle(envelope, selected) {
-			const idx = this.envelopes.indexOf(envelope)
-
-			if (selected) {
+		setEnvelopeSelected(envelope, selected) {
+			const alreadySelected = this.selection.includes(envelope.databaseId)
+			if (selected && !alreadySelected) {
 				envelope.flags.selected = true
-				this.selection.push(idx)
-			} else {
+				this.selection.push(envelope.databaseId)
+			} else if (!selected && alreadySelected) {
 				envelope.flags.selected = false
-				this.selection.splice(this.selection.indexOf(idx), 1)
+				this.selection.splice(this.selection.indexOf(envelope.databaseId), 1)
+			}
+		},
+		onEnvelopeSelectToggle(envelope, index, selected) {
+			this.lastToggledIndex = index
+			this.setEnvelopeSelected(envelope, selected)
+		},
+		onEnvelopeSelectMultiple(envelope, index) {
+			if (this.lastToggledIndex === undefined) {
+				return
 			}
 
+			const start = Math.min(this.lastToggledIndex, index)
+			const end = Math.max(this.lastToggledIndex, index)
+			const selected = this.selection.includes(envelope.databaseId)
+			for (let i = start; i <= end; i++) {
+				this.setEnvelopeSelected(this.envelopes[i], !selected)
+			}
+			this.lastToggledIndex = index
 		},
 		unselectAll() {
 			this.envelopes.forEach((env) => {
 				env.flags.selected = false
 			})
 			this.selection = []
+		},
+		onOpenMoveModal() {
+			this.showMoveModal = true
+		},
+		async forwardSelectedAsAttachment() {
+			const selected = this.selection
+			this.$router.push({
+				name: 'message',
+				params: {
+					mailboxId: this.$route.params.mailboxId,
+					threadId: 'new',
+				},
+				query: {
+					forwardedMessages: selected,
+				},
+			})
+			this.unselectAll()
+		},
+		onCloseMoveModal() {
+			this.showMoveModal = false
+			this.unselectAll()
 		},
 	},
 }

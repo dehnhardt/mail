@@ -24,6 +24,8 @@ import Vue from 'vue'
 import { getRequestToken } from '@nextcloud/auth'
 import { sync } from 'vuex-router-sync'
 import { generateFilePath } from '@nextcloud/router'
+import '@nextcloud/dialogs/styles/toast.scss'
+import './directives/drag-and-drop/styles/drag-and-drop.scss'
 import VueShortKey from 'vue-shortkey'
 import VTooltip from 'v-tooltip'
 
@@ -59,6 +61,10 @@ store.commit('savePreference', {
 	value: getPreferenceFromPage('debug-mode'),
 })
 store.commit('savePreference', {
+	key: 'attachment-size-limit',
+	value: Number.parseInt(getPreferenceFromPage('attachment-size-limit'), 10),
+})
+store.commit('savePreference', {
 	key: 'version',
 	value: getPreferenceFromPage('config-installed-version'),
 })
@@ -71,9 +77,21 @@ store.commit('savePreference', {
 	value: getPreferenceFromPage('collect-data'),
 })
 
+const accountSettings = JSON.parse(Base64.decode(getPreferenceFromPage('account-settings')))
 const accounts = JSON.parse(Base64.decode(getPreferenceFromPage('serialized-accounts')))
 accounts.map(fixAccountId).forEach((account) => {
-	store.commit('addAccount', account)
+	const settings = accountSettings.find(settings => settings.accountId === account.id)
+	if (settings) {
+		delete settings.accountId
+		Object.entries(settings).forEach(([key, value]) => {
+			store.commit('setAccountSetting', {
+				accountId: account.id,
+				key,
+				value,
+			})
+		})
+	}
+	store.commit('addAccount', { ...account, ...settings })
 })
 
 export default new Vue({

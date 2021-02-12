@@ -1,6 +1,5 @@
 <template>
 	<AppContent>
-		<AppDetailsToggle v-if="showThread" @close="hideMessage" />
 		<div id="app-content-wrapper">
 			<AppContentList
 				v-infinite-scroll="onScroll"
@@ -9,6 +8,8 @@
 				:show-details="showThread"
 				:infinite-scroll-disabled="false"
 				:infinite-scroll-distance="10"
+				role="heading"
+				:aria-level="2"
 				@shortkey.native="onShortcut">
 				<Mailbox
 					v-if="!mailbox.isPriorityInbox"
@@ -18,7 +19,7 @@
 					:bus="bus" />
 				<template v-else>
 					<div class="app-content-list-item">
-						<SectionTitle class="important" :name="t('mail', 'Important')" />
+						<SectionTitle class="important" :name="t('mail', 'Important and unread')" />
 						<Popover trigger="hover focus">
 							<button slot="trigger" :aria-label="t('mail', 'Important info')" class="button icon-info" />
 							<p class="important-info">
@@ -30,7 +31,7 @@
 						class="nameimportant"
 						:account="unifiedAccount"
 						:mailbox="unifiedInbox"
-						:search-query="appendToSearch('is:important')"
+						:search-query="appendToSearch('is:pi-important')"
 						:paginate="'manual'"
 						:is-priority-inbox="true"
 						:initial-page-size="5"
@@ -41,7 +42,7 @@
 						class="namestarred"
 						:account="unifiedAccount"
 						:mailbox="unifiedInbox"
-						:search-query="appendToSearch('is:starred not:important')"
+						:search-query="appendToSearch('is:pi-starred')"
 						:paginate="'manual'"
 						:is-priority-inbox="true"
 						:initial-page-size="5"
@@ -52,7 +53,7 @@
 						:account="unifiedAccount"
 						:mailbox="unifiedInbox"
 						:open-first="false"
-						:search-query="appendToSearch('not:starred not:important')"
+						:search-query="appendToSearch('is:pi-other')"
 						:is-priority-inbox="true"
 						:bus="bus" />
 				</template>
@@ -73,7 +74,6 @@ import isMobile from '@nextcloud/vue/dist/Mixins/isMobile'
 import SectionTitle from './SectionTitle'
 import Vue from 'vue'
 
-import AppDetailsToggle from './AppDetailsToggle'
 import logger from '../logger'
 import Mailbox from './Mailbox'
 import NewMessageDetail from './NewMessageDetail'
@@ -89,7 +89,6 @@ export default {
 	components: {
 		AppContent,
 		AppContentList,
-		AppDetailsToggle,
 		Mailbox,
 		NewMessageDetail,
 		NoMessageSelected,
@@ -110,7 +109,6 @@ export default {
 	},
 	data() {
 		return {
-			alive: false,
 			// eslint-disable-next-line
 			importantInfo: t('mail', 'Messages will automatically be marked as important based on which messages you interacted with or marked as important. In the beginning you might have to manually change the importance to teach the system, but it will improve over time.'),
 			bus: new Vue(),
@@ -152,30 +150,11 @@ export default {
 				this.$route.params.threadId === 'new'
 				|| this.$route.params.threadId === 'reply'
 				|| this.$route.params.threadId === 'replyAll'
+				|| this.$route.params.threadId === 'asNew'
 			)
 		},
 	},
-	created() {
-		this.alive = true
-
-		window.addEventListener('DOMContentLoaded', (event) => {
-			// eslint-disable-next-line no-new
-			new OCA.Search(this.searchProxy, this.clearSearchProxy)
-		})
-	},
-	beforeDestroy() {
-		this.alive = false
-	},
 	methods: {
-		hideMessage() {
-			this.$router.replace({
-				name: 'mailbox',
-				params: {
-					mailboxId: this.mailbox.databaseId,
-					filter: this.$route.params.filter ? this.$route.params.filter : undefined,
-				},
-			})
-		},
 		deleteMessage(id) {
 			this.bus.$emit('delete', id)
 		},
@@ -192,22 +171,6 @@ export default {
 				return str
 			}
 			return this.searchQuery + ' ' + str
-		},
-		searchProxy(query) {
-			if (this.alive) {
-				this.search(query)
-			}
-		},
-		clearSearchProxy() {
-			if (this.alive) {
-				this.clearSearch()
-			}
-		},
-		search(query) {
-			this.searchQuery = query
-		},
-		clearSearch() {
-			this.searchQuery = undefined
 		},
 	},
 }

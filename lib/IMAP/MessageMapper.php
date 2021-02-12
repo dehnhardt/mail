@@ -39,6 +39,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use Psr\Log\LoggerInterface;
 use function array_filter;
 use function array_map;
+use function in_array;
 use function iterator_to_array;
 use function reset;
 
@@ -129,7 +130,7 @@ class MessageMapper {
 		// Determine min UID to fetch, but don't exceed the known maximum
 		$lower = max(
 			$min,
-			($highestKnownUid ?? 0) + 1
+			$highestKnownUid + 1
 		);
 		// Determine max UID to fetch, but don't exceed the known maximum
 		$upper = min(
@@ -170,7 +171,7 @@ class MessageMapper {
 
 				function (int $uid) use ($highestKnownUid) {
 					// Don't load the ones we already know
-					return $highestKnownUid === null || $uid > $highestKnownUid;
+					return $uid > $highestKnownUid;
 				}
 			),
 			0,
@@ -365,9 +366,9 @@ class MessageMapper {
 	 * @return string|null
 	 * @throws ServiceException
 	 */
-	public function getSource(Horde_Imap_Client_Socket $client,
-							  string $mailbox,
-							  int $uid): ?string {
+	public function getFullText(Horde_Imap_Client_Socket $client,
+								string $mailbox,
+								int $uid): ?string {
 		$query = new Horde_Imap_Client_Fetch_Query();
 		$query->uid();
 		$query->fullText([
@@ -379,7 +380,11 @@ class MessageMapper {
 				'ids' => new Horde_Imap_Client_Ids($uid),
 			]), false);
 		} catch (Horde_Imap_Client_Exception $e) {
-			throw new ServiceException("Could not fetch message source: " . $e->getMessage(), $e->getCode(), $e);
+			throw new ServiceException(
+				"Could not fetch message source: " . $e->getMessage(),
+				(int) $e->getCode(),
+				$e
+			);
 		}
 
 		$msg = array_map(function (Horde_Imap_Client_Data_Fetch $result) {
@@ -451,8 +456,9 @@ class MessageMapper {
 	}
 
 	public function getRawAttachments(Horde_Imap_Client_Socket $client,
-									  string $mailbox,
-									  int $uid): array {
+									string $mailbox,
+									int $uid,
+									?array $attachmentIds = []): array {
 		$messageQuery = new Horde_Imap_Client_Fetch_Query();
 		$messageQuery->structure();
 
@@ -471,6 +477,10 @@ class MessageMapper {
 			/** @var Horde_Mime_Part $part */
 			if ($part->getMimeId() === '0') {
 				// Ignore message header
+				continue;
+			}
+			if (!empty($attachmentIds) && !in_array($part->getMIMEId(), $attachmentIds, true)) {
+				// We are looking for specific parts only and this is not one of them
 				continue;
 			}
 

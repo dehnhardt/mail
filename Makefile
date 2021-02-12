@@ -8,9 +8,6 @@ source_dir=$(build_dir)/source
 sign_dir=$(build_dir)/sign
 package_name=$(app_name)
 cert_dir=$(HOME)/.nextcloud/certificates
-docker_image=christophwurst/nextcloud-mail-test-docker
-mail_user=user@domain.tld
-mail_pwd=mypassword
 
 all: appstore
 
@@ -18,16 +15,13 @@ clean:
 	rm -rf $(build_dir)
 	rm -rf node_modules
 
-composer.phar:
-	curl -sS https://getcomposer.org/installer | php
-
 install-deps: install-composer-deps-dev install-npm-deps-dev
 
-install-composer-deps: composer.phar
-	php composer.phar install --no-dev -o
+install-composer-deps:
+	composer install --no-dev -o
 
-install-composer-deps-dev: composer.phar
-	php composer.phar install -o
+install-composer-deps-dev:
+	composer install -o
 
 install-npm-deps:
 	npm install --production
@@ -47,28 +41,19 @@ build-js-production:
 watch-js:
 	npm run watch
 
-dev-setup: install-composer-deps-dev install-npm-deps-dev optimize-js
+dev-setup: install-composer-deps-dev install-npm-deps-dev build-js
 
-start-imap-docker:
-	docker pull $(docker_image)
-	docker run --name="ncimaptest" -d \
+start-docker:
+	docker pull christophwurst/imap-devel
+	docker run --name="ncmailtest" -d \
+	-p 25:25 \
+	-p 143:143 \
 	-p 993:993 \
-	-e POSTFIX_HOSTNAME=mail.domain.tld $(docker_image)
-
-start-smtp-docker:
-	docker pull catatnight/postfix
-	docker run --name="ncsmtptest" -d \
-	-e maildomain=domain.tld \
-	-e smtp_user=user@domain.tld:mypassword \
-	-p 2525:25 \
-	catatnight/postfix
-
-add-imap-account:
-	docker exec -it ncimaptest /opt/bin/useradd $(mail_user) $(mail_pwd)
-
-update-composer: composer.phar
-	rm -f composer.lock
-	php composer.phar install --prefer-dist
+	--hostname mail.domain.tld \
+	-e MAILNAME=mail.domain.tld \
+	-e MAIL_ADDRESS=user@domain.tld \
+	-e MAIL_PASS=mypassword \
+	christophwurst/imap-devel
 
 appstore:
 	krankerl package

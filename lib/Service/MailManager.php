@@ -37,6 +37,7 @@ use OCA\Mail\Events\MessageDeletedEvent;
 use OCA\Mail\Events\MessageFlaggedEvent;
 use OCA\Mail\Exception\ClientException;
 use OCA\Mail\Exception\ServiceException;
+use OCA\Mail\Exception\TrashMailboxNotSetException;
 use OCA\Mail\Folder;
 use OCA\Mail\IMAP\FolderMapper;
 use OCA\Mail\IMAP\FolderStats;
@@ -63,6 +64,7 @@ class MailManager implements IMailManager {
 		'draft' => [Horde_Imap_Client::FLAG_DRAFT],
 		'recent' => [Horde_Imap_Client::FLAG_RECENT],
 		'junk' => [Horde_Imap_Client::FLAG_JUNK, 'junk'],
+		'mdnsent' => [Horde_Imap_Client::FLAG_MDNSENT],
 	];
 
 	/** @var IMAPClientFactory */
@@ -142,7 +144,12 @@ class MailManager implements IMailManager {
 		try {
 			$this->folderMapper->getFoldersStatus([$folder], $client);
 		} catch (Horde_Imap_Client_Exception $e) {
-			throw new ServiceException("Could not get mailbox status: " . $e->getMessage(), $e->getCode(), $e);
+			throw new ServiceException(
+				"Could not get mailbox status: " .
+				$e->getMessage(),
+				(int) $e->getCode(),
+				$e
+			);
 		}
 		$this->folderMapper->detectFolderSpecialUse([$folder]);
 
@@ -177,8 +184,12 @@ class MailManager implements IMailManager {
 				$uid,
 				$loadBody
 			);
-		} catch (Horde_Imap_Client_Exception|DoesNotExistException $e) {
-			throw new ServiceException("Could not load message", $e->getCode(), $e);
+		} catch (Horde_Imap_Client_Exception | DoesNotExistException $e) {
+			throw new ServiceException(
+				"Could not load message",
+				(int) $e->getCode(),
+				$e
+			);
 		}
 	}
 
@@ -196,7 +207,7 @@ class MailManager implements IMailManager {
 
 	/**
 	 * @param Account $account
-	 * @param string $mb
+	 * @param string $mailbox
 	 * @param int $uid
 	 *
 	 * @return string
@@ -208,12 +219,12 @@ class MailManager implements IMailManager {
 		$client = $this->imapClientFactory->getClient($account);
 
 		try {
-			return $this->imapMessageMapper->getSource(
+			return $this->imapMessageMapper->getFullText(
 				$client,
 				$mailbox,
 				$uid
 			);
-		} catch (Horde_Imap_Client_Exception|DoesNotExistException $e) {
+		} catch (Horde_Imap_Client_Exception | DoesNotExistException $e) {
 			throw new ServiceException("Could not load message", 0, $e);
 		}
 	}
@@ -235,11 +246,23 @@ class MailManager implements IMailManager {
 								Account $destinationAccount,
 								string $destFolderId) {
 		if ($sourceAccount->getId() === $destinationAccount->getId()) {
+			try {
+				$sourceMailbox = $this->mailboxMapper->find($sourceAccount, $sourceFolderId);
+			} catch (DoesNotExistException $e) {
+				throw new ServiceException("Source mailbox $sourceFolderId does not exist", 0, $e);
+			}
+
 			$this->moveMessageOnSameAccount(
 				$sourceAccount,
 				$sourceFolderId,
 				$destFolderId,
 				$uid
+			);
+
+			// Delete cached source message (the source imap message is copied and deleted)
+			$this->eventDispatcher->dispatch(
+				MessageDeletedEvent::class,
+				new MessageDeletedEvent($sourceAccount, $sourceMailbox, $uid)
 			);
 		} else {
 			throw new ServiceException('It is not possible to move across accounts yet');
@@ -247,9 +270,9 @@ class MailManager implements IMailManager {
 	}
 
 	/**
+	 * @throws ClientException
 	 * @throws ServiceException
 	 * @todo evaluate if we should sync mailboxes first
-	 *
 	 */
 	public function deleteMessage(Account $account,
 								  string $mailboxId,
@@ -265,7 +288,11 @@ class MailManager implements IMailManager {
 			throw new ServiceException("Source mailbox $mailboxId does not exist", 0, $e);
 		}
 		try {
-			$trashMailbox = $this->mailboxMapper->findSpecial($account, 'trash');
+			$trashMailboxId = $account->getMailAccount()->getTrashMailboxId();
+			if ($trashMailboxId === null) {
+				throw new TrashMailboxNotSetException();
+			}
+			$trashMailbox = $this->mailboxMapper->findById($trashMailboxId);
 		} catch (DoesNotExistException $e) {
 			throw new ServiceException("No trash folder", 0, $e);
 		}
@@ -325,7 +352,11 @@ class MailManager implements IMailManager {
 		try {
 			$client->subscribeMailbox($mailbox->getName(), $subscribed);
 		} catch (Horde_Imap_Client_Exception $e) {
-			throw new ServiceException("Could not set subscription status for mailbox $mailbox on IMAP: " . $e->getMessage(), $e->getCode(), $e);
+			throw new ServiceException(
+				"Could not set subscription status for mailbox " . $mailbox->getId() . " on IMAP: " . $e->getMessage(),
+				(int) $e->getCode(),
+				$e
+			);
 		}
 
 		/**
@@ -365,7 +396,11 @@ class MailManager implements IMailManager {
 				}
 			}
 		} catch (Horde_Imap_Client_Exception $e) {
-			throw new ServiceException("Could not set message flag on IMAP: " . $e->getMessage(), $e->getCode(), $e);
+			throw new ServiceException(
+				"Could not set message flag on IMAP: " . $e->getMessage(),
+				(int) $e->getCode(),
+				$e
+			);
 		}
 
 		$this->eventDispatcher->dispatch(

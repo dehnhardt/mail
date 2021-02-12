@@ -22,7 +22,7 @@
 import { curry } from 'ramda'
 import escapeRegExp from 'lodash/fp/escapeRegExp'
 import orderBy from 'lodash/fp/orderBy'
-import sortedUniqBy from 'lodash/fp/sortedUniqBy'
+import uniq from 'lodash/fp/uniq'
 import Vue from 'vue'
 
 import { sortMailboxes } from '../imap/MailboxSorter'
@@ -77,7 +77,7 @@ export default {
 		Vue.set(state.preferences, key, value)
 	},
 	addAccount(state, account) {
-		account.collapsed = true
+		account.collapsed = account.collapsed ?? true
 		Vue.set(state.accounts, account.id, account)
 		Vue.set(
 			state,
@@ -110,6 +110,16 @@ export default {
 	expandAccount(state, accountId) {
 		state.accounts[accountId].collapsed = false
 	},
+	setAccountSetting(state, { accountId, key, value }) {
+		const accountSettings = state.allAccountSettings.find(settings => settings.accountId === accountId)
+		if (accountSettings) {
+			accountSettings[key] = value
+		} else {
+			const newAccountSettings = { accountId }
+			newAccountSettings[key] = value
+			state.allAccountSettings.push(newAccountSettings)
+		}
+	},
 	addMailbox(state, { account, mailbox }) {
 		addMailboxToState(state, account, mailbox)
 	},
@@ -141,9 +151,8 @@ export default {
 		const listId = normalizedEnvelopeListId(query)
 		const existing = mailbox.envelopeLists[listId] || []
 		const idToDateInt = (id) => state.envelopes[id].dateInt
-		const sortedUniqByDateInt = sortedUniqBy(idToDateInt)
 		const orderByDateInt = orderBy(idToDateInt, 'desc')
-		Vue.set(mailbox.envelopeLists, listId, sortedUniqByDateInt(orderByDateInt(existing.concat([envelope.databaseId]))))
+		Vue.set(mailbox.envelopeLists, listId, uniq(orderByDateInt(existing.concat([envelope.databaseId]))))
 
 		const unifiedAccount = state.accounts[UNIFIED_ACCOUNT_ID]
 		unifiedAccount.mailboxes
@@ -154,7 +163,7 @@ export default {
 				Vue.set(
 					mailbox.envelopeLists,
 					listId,
-					sortedUniqByDateInt(orderByDateInt(existing.concat([envelope.databaseId])))
+					uniq(orderByDateInt(existing.concat([envelope.databaseId])))
 				)
 			})
 	},

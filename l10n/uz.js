@@ -7,6 +7,8 @@ OC.L10N.register(
     "Save" : "Saqlash",
     "Connect" : "Ulanmoq",
     "Send" : "Yuborish",
+    "Choose" : "Tanlang",
+    "Move" : "Ko'chiring",
     "Delete" : "O'chir",
     "Settings" : "Sozlamalar",
     "Saving" : "Saqlanmoqda",

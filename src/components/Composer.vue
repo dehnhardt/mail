@@ -143,10 +143,14 @@
 				:is-reply-or-forward="isReply || isForward" />
 		</div>
 		<div class="composer-actions">
-			<ComposerAttachments v-model="attachments" :bus="bus" @upload="onAttachmentsUploading" />
+			<ComposerAttachments v-model="attachments"
+				:bus="bus"
+				:upload-size-limit="attachmentSizeLimit"
+				@upload="onAttachmentsUploading" />
 			<div class="composer-actions-right">
 				<p class="composer-actions-draft">
-					<span v-if="savingDraft === true" id="draft-status">{{ t('mail', 'Saving draft …') }}</span>
+					<span v-if="!canSaveDraft" id="draft-status">{{ t('mail', 'Can not save draft because this account does not have a drafts mailbox configured.') }}</span>
+					<span v-else-if="savingDraft === true" id="draft-status">{{ t('mail', 'Saving draft …') }}</span>
 					<span v-else-if="savingDraft === false" id="draft-status">{{ t('mail', 'Draft saved') }}</span>
 				</p>
 				<Actions>
@@ -160,9 +164,9 @@
 							t('mail', 'Add attachment from Files')
 						}}
 					</ActionButton>
-					<ActionButton :disabled="encrypt" icon="icon-folder" @click="onAddCloudAttachmentLink">
+					<ActionButton :disabled="encrypt" icon="icon-public" @click="onAddCloudAttachmentLink">
 						{{
-							t('mail', 'Add attachment link from Files')
+							addShareLink
 						}}
 					</ActionButton>
 					<ActionCheckbox
@@ -171,6 +175,12 @@
 						@check="editorMode = 'html'"
 						@uncheck="editorMode = 'plaintext'">
 						{{ t('mail', 'Enable formatting') }}
+					</ActionCheckbox>
+					<ActionCheckbox
+						:checked="requestMdn"
+						@check="requestMdn = true"
+						@uncheck="requestMdn = false">
+						{{ t('mail', 'Request a read receipt') }}
 					</ActionCheckbox>
 					<ActionCheckbox
 						v-if="mailvelope.available"
@@ -199,9 +209,9 @@
 			</div>
 		</div>
 	</div>
-	<Loading v-else-if="state === STATES.UPLOADING" :hint="t('mail', 'Uploading attachments …')" />
-	<Loading v-else-if="state === STATES.SENDING" :hint="t('mail', 'Sending …')" />
-	<div v-else-if="state === STATES.ERROR" class="emptycontent">
+	<Loading v-else-if="state === STATES.UPLOADING" :hint="t('mail', 'Uploading attachments …')" role="alert" />
+	<Loading v-else-if="state === STATES.SENDING" :hint="t('mail', 'Sending …')" role="alert" />
+	<div v-else-if="state === STATES.ERROR" class="emptycontent" role="alert">
 		<h2>{{ t('mail', 'Error sending your message') }}</h2>
 		<p v-if="errorText">
 			{{ errorText }}
@@ -224,6 +234,8 @@
 <script>
 import debounce from 'lodash/fp/debounce'
 import uniqBy from 'lodash/fp/uniqBy'
+import isArray from 'lodash/fp/isArray'
+import trimStart from 'lodash/fp/trimCharsStart'
 import Autosize from 'vue-autosize'
 import debouncePromise from 'debounce-promise'
 import Actions from '@nextcloud/vue/dist/Components/Actions'
@@ -231,6 +243,7 @@ import ActionButton from '@nextcloud/vue/dist/Components/ActionButton'
 import ActionCheckbox from '@nextcloud/vue/dist/Components/ActionCheckbox'
 import ActionLink from '@nextcloud/vue/dist/Components/ActionLink'
 import Multiselect from '@nextcloud/vue/dist/Components/Multiselect'
+import { showError } from '@nextcloud/dialogs'
 import { translate as t } from '@nextcloud/l10n'
 import Vue from 'vue'
 
@@ -244,8 +257,15 @@ import { buildReplyBody } from '../ReplyBuilder'
 import MailvelopeEditor from './MailvelopeEditor'
 import { getMailvelope } from '../crypto/mailvelope'
 import { isPgpgMessage } from '../crypto/pgp'
+import { matchError } from '../errors/match'
+import NoSentMailboxConfiguredError
+	from '../errors/NoSentMailboxConfiguredError'
+import NoDraftsMailboxConfiguredError
+	from '../errors/NoDraftsMailboxConfiguredError'
 
 const debouncedSearch = debouncePromise(findRecipient, 500)
+
+const NO_ALIAS_SET = -1
 
 Vue.use(Autosize)
 
@@ -317,7 +337,7 @@ export default {
 	data() {
 		return {
 			showCC: this.cc.length > 0,
-			selectedAlias: -1, // Fixed in `beforeMount`
+			selectedAlias: NO_ALIAS_SET, // Fixed in `beforeMount`
 			autocompleteRecipients: this.to.concat(this.cc).concat(this.bcc),
 			newRecipients: [],
 			subjectVal: this.subject,
@@ -326,6 +346,7 @@ export default {
 			noReply: this.to.some((to) => to.email.startsWith('noreply@') || to.email.startsWith('no-reply@')),
 			draftsPromise: Promise.resolve(),
 			attachmentsPromise: Promise.resolve(),
+			canSaveDraft: true,
 			savingDraft: undefined,
 			saveDraftDebounced: debounce(700, this.saveDraft),
 			state: STATES.EDITING,
@@ -342,6 +363,8 @@ export default {
 				keysMissing: [],
 			},
 			editorMode: 'html',
+			addShareLink: t('mail', 'Add share link from {productName} Files', { productName: OC?.theme?.name ?? 'Nextcloud' }),
+			requestMdn: false,
 		}
 	},
 	computed: {
@@ -374,6 +397,9 @@ export default {
 		},
 		allRecipients() {
 			return this.selectTo.concat(this.selectCc).concat(this.selectBcc)
+		},
+		attachmentSizeLimit() {
+			return this.$store.getters.getPreference('attachment-size-limit')
 		},
 		selectableRecipients() {
 			return this.newRecipients
@@ -420,6 +446,7 @@ export default {
 	},
 	mounted() {
 		this.$refs.toLabel.$el.focus()
+
 		// event is triggered when user clicks 'new message' in navigation
 		this.$root.$on('newMessage', () => {
 			this.draftsPromise
@@ -430,6 +457,43 @@ export default {
 					// wait for the draft to be saved before resetting the message content
 					this.reset()
 				})
+		})
+
+		// Add attachments in case of forward
+		if (this.forwardFrom?.attachments !== undefined) {
+			this.forwardFrom.attachments.map(att => {
+				this.attachments.push({
+					fileName: att.fileName,
+					displayName: trimStart('/', att.fileName),
+					id: att.id,
+					messageId: this.forwardFrom.databaseId,
+					type: 'message-attachment',
+				})
+			})
+		}
+
+		// Add messages forwarded as attachments
+		let forwards = []
+		if (this.$route.query.forwardedMessages && !isArray(this.$route.query.forwardedMessages)) {
+			forwards = [this.$route.query.forwardedMessages]
+		} else if (this.$route.query.forwardedMessages && isArray(this.$route.query.forwardedMessages)) {
+			forwards = this.$route.query.forwardedMessages
+		}
+		forwards.map(id => {
+			const env = this.$store.getters.getEnvelope(id)
+			if (!env) {
+				// TODO: also happens when the composer page is reloaded
+				showError(t('mail', 'Message {id} could not be found', {
+					id,
+				}))
+				return
+			}
+
+			this.attachments.push({
+				displayName: env.subject + '.eml',
+				id,
+				type: 'message',
+			})
 		})
 	},
 	beforeDestroy() {
@@ -445,7 +509,7 @@ export default {
 			} else {
 				this.selectedAlias = this.aliases[0]
 			}
-			if (previous === undefined) {
+			if (previous === NO_ALIAS_SET) {
 				this.editorMode = this.selectedAlias.editorMode
 			}
 		},
@@ -473,9 +537,9 @@ export default {
 				this.bodyVal = this.bodyWithSignature(
 					this.selectedAlias,
 					buildReplyBody(
-						this.editorPlainText ? toPlain(this.originalBody) : toHtml(this.originalBody),
-						this.original.from[0],
-						this.original.dateInt
+						this.editorPlainText ? toPlain(this.body) : toHtml(this.body),
+						this.forwardFrom.from[0],
+						this.forwardFrom.dateInt
 					).value
 				).value
 			} else {
@@ -510,6 +574,7 @@ export default {
 				attachments: this.attachments,
 				messageId: this.replyTo ? this.replyTo.databaseId : undefined,
 				isHtml: !this.editorPlainText,
+				requestMdn: this.requestMdn,
 			}
 		},
 		saveDraft(data) {
@@ -534,7 +599,26 @@ export default {
 					}
 					return this.draft(draftData)
 				})
-				.catch(logger.error.bind(logger))
+				.then((uid) => {
+					// It works (again)
+					this.canSaveDraft = true
+
+					return uid
+				})
+				.catch(async(error) => {
+					console.error('could not save draft', error)
+					const canSave = await matchError(error, {
+						[NoDraftsMailboxConfiguredError.getName()]() {
+							return false
+						},
+						default() {
+							return true
+						},
+					})
+					if (!canSave) {
+						this.canSaveDraft = false
+					}
+				})
 				.then((uid) => {
 					this.savingDraft = false
 					return uid
@@ -603,20 +687,39 @@ export default {
 
 			this.state = STATES.UPLOADING
 
-			return this.attachmentsPromise
+			await this.attachmentsPromise
 				.then(() => (this.state = STATES.SENDING))
 				.then(() => this.draftsPromise)
 				.then(this.getMessageData)
 				.then((data) => this.send(data))
 				.then(() => logger.info('message sent'))
 				.then(() => (this.state = STATES.FINISHED))
-				.catch((error) => {
+				.catch(async(error) => {
 					logger.error('could not send message', { error })
-					if (error && error.toString) {
-						this.errorText = error.toString()
-					}
+					this.errorText = await matchError(error, {
+						[NoSentMailboxConfiguredError.getName()]() {
+							return t('mail', 'No sent mailbox configured. Please pick one in the account settings.')
+						},
+						default(error) {
+							if (error && error.toString) {
+								return error.toString()
+							}
+						},
+					})
 					this.state = STATES.ERROR
 				})
+
+			// Sync sent mailbox when it's currently open
+			const account = this.$store.getters.getAccount(this.selectedAlias.id)
+			if (parseInt(this.$route.params.mailboxId, 10) === account.sentMailboxId) {
+				setTimeout(() => {
+					this.$store.dispatch('syncEnvelopes', {
+						mailboxId: account.sentMailboxId,
+						query: '',
+						init: false,
+					})
+				}, 500)
+			}
 		},
 		reset() {
 			this.draftsPromise = Promise.resolve() // "resets" draft uid as well
@@ -630,6 +733,7 @@ export default {
 			this.state = STATES.EDITING
 			this.autocompleteRecipients = []
 			this.newRecipients = []
+			this.requestMdn = false
 
 			this.setAlias()
 			this.initBody()
@@ -782,10 +886,10 @@ export default {
 	background-position: 12px center;
 	margin-left: 4px;
 }
-</style>
-
-<style>
-.multiselect .multiselect__tags {
+::v-deep .multiselect .multiselect__tags {
 	border: none !important;
+}
+.submit-message.send.primary.icon-confirm-white {
+	color: var(--color-main-background);
 }
 </style>

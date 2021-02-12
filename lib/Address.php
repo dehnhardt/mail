@@ -29,6 +29,9 @@ namespace OCA\Mail;
 use Horde_Mail_Rfc822_Address;
 use JsonSerializable;
 
+/**
+ * @psalm-immutable
+ */
 class Address implements JsonSerializable {
 	public const TYPE_FROM = 0;
 	public const TYPE_TO = 1;
@@ -38,16 +41,21 @@ class Address implements JsonSerializable {
 	/** @var Horde_Mail_Rfc822_Address */
 	private $wrapped;
 
-	/**
-	 * @param string $label
-	 * @param string $email
-	 */
-	public function __construct($label, $email) {
-		$this->wrapped = new Horde_Mail_Rfc822_Address($email);
+	private function __construct(Horde_Mail_Rfc822_Address $wrapped) {
+		$this->wrapped = $wrapped;
+	}
+
+	public static function fromHorde(Horde_Mail_Rfc822_Address $horde): self {
+		return new self($horde);
+	}
+
+	public static function fromRaw(string $label, string $email): self {
+		$wrapped = new Horde_Mail_Rfc822_Address($email);
 		// If no label is set we use the email
-		if ($label !== $email && $label !== null) {
-			$this->wrapped->personal = $label;
+		if ($label !== $email) {
+			$wrapped->personal = $label;
 		}
+		return new self($wrapped);
 	}
 
 	/**
@@ -66,7 +74,22 @@ class Address implements JsonSerializable {
 	 * @return string|null
 	 */
 	public function getEmail(): ?string {
-		return $this->wrapped->bare_address;
+		$email = $this->wrapped->bare_address;
+		if ($email === null) {
+			return null;
+		}
+		// Lets make sure the e-mail is valid UTF-8 at all times
+		// Try a soft conversion first (some installations, eg: Alpine linux,
+		// have issues with the '//IGNORE' option)
+		$utf8 = iconv('UTF-8', 'UTF-8', $email);
+		if ($utf8 !== false) {
+			return $utf8;
+		}
+		$utf8 = iconv("UTF-8", "UTF-8//IGNORE", $email);
+		if ($utf8 === false) {
+			throw new \Exception("Email address <$email> could not be converted via iconv");
+		}
+		return $utf8;
 	}
 
 	/**

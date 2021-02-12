@@ -25,6 +25,7 @@
 
 <script>
 import AppNavigationItem from '@nextcloud/vue/dist/Components/AppNavigationItem'
+import logger from '../logger'
 
 export default {
 	name: 'NavigationAccountExpandCollapse',
@@ -43,16 +44,29 @@ export default {
 		},
 		title() {
 			if (this.account.collapsed && this.account.showSubscribedOnly) {
-				return t('mail', 'Show all subscribed folders')
+				return t('mail', 'Show all subscribed mailbox')
 			} else if (this.account.collapsed && !this.account.showSubscribedOnly) {
-				return t('mail', 'Show all folders')
+				return t('mail', 'Show all mailboxes')
 			}
-			return t('mail', 'Collapse folders')
+			return t('mail', 'Collapse mailboxes')
 		},
 	},
 	methods: {
-		toggleCollapse() {
-			this.$store.commit('toggleAccountCollapsed', this.account.id)
+		async toggleCollapse() {
+			logger.debug('toggling collapsed mailboxes for account ' + this.account.id)
+			try {
+				await this.$store.commit('toggleAccountCollapsed', this.account.id)
+				await this.$store
+					.dispatch('setAccountSetting', {
+						accountId: this.account.id,
+						key: 'collapsed',
+						value: this.account.collapsed,
+					})
+			} catch (error) {
+				logger.error('could not update account settings', {
+					error,
+				})
+			}
 		},
 	},
 }

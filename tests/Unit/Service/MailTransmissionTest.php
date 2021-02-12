@@ -29,14 +29,18 @@ use Horde_Mail_Transport;
 use OC\Files\Node\File;
 use OCA\Mail\Account;
 use OCA\Mail\Contracts\IAttachmentService;
+use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Db\Alias;
 use OCA\Mail\Db\MailAccount;
+use OCA\Mail\Db\Mailbox as DbMailbox;
 use OCA\Mail\Db\MailboxMapper;
+use OCA\Mail\Db\Message as DbMessage;
 use OCA\Mail\IMAP\IMAPClientFactory;
 use OCA\Mail\IMAP\MessageMapper;
 use OCA\Mail\Model\Message;
 use OCA\Mail\Model\NewMessageData;
 use OCA\Mail\Model\RepliedMessageData;
+use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\MailTransmission;
 use OCA\Mail\SMTP\SmtpClientFactory;
 use OCP\EventDispatcher\IEventDispatcher;
@@ -49,11 +53,17 @@ class MailTransmissionTest extends TestCase {
 	/** @var Folder|MockObject */
 	private $userFolder;
 
+	/** @var AccountService|MockObject */
+	private $accountService;
+
 	/** @var IAttachmentService|MockObject */
 	private $attachmentService;
 
 	/** @var IMAPClientFactory|MockObject */
 	private $imapClientFactory;
+
+	/** @var IMailManager|MockObject */
+	private $mailManager;
 
 	/** @var SmtpClientFactory|MockObject */
 	private $smtpClientFactory;
@@ -77,7 +87,9 @@ class MailTransmissionTest extends TestCase {
 		parent::setUp();
 
 		$this->userFolder = $this->createMock(Folder::class);
+		$this->accountService = $this->createMock(AccountService::class);
 		$this->attachmentService = $this->createMock(IAttachmentService::class);
+		$this->mailManager = $this->createMock(IMailManager::class);
 		$this->imapClientFactory = $this->createMock(IMAPClientFactory::class);
 		$this->smtpClientFactory = $this->createMock(SmtpClientFactory::class);
 		$this->eventDispatcher = $this->createMock(IEventDispatcher::class);
@@ -87,7 +99,9 @@ class MailTransmissionTest extends TestCase {
 
 		$this->transmission = new MailTransmission(
 			$this->userFolder,
+			$this->accountService,
 			$this->attachmentService,
+			$this->mailManager,
 			$this->imapClientFactory,
 			$this->smtpClientFactory,
 			$this->eventDispatcher,
@@ -100,9 +114,12 @@ class MailTransmissionTest extends TestCase {
 	public function testSendNewMessage() {
 		$mailAccount = new MailAccount();
 		$mailAccount->setUserId('testuser');
+		$mailAccount->setSentMailboxId(123);
 		/** @var Account|MockObject $account */
 		$account = $this->createMock(Account::class);
 		$account->method('getMailAccount')->willReturn($mailAccount);
+		$account->method('getName')->willReturn('Test User');
+		$account->method('getEMailAddress')->willReturn('test@user');
 		$messageData = NewMessageData::fromRequest($account, 'to@d.com', '', '', 'sub', 'bod');
 		$message = new Message();
 		$account->expects($this->once())
@@ -120,9 +137,12 @@ class MailTransmissionTest extends TestCase {
 	public function testSendMessageFromAlias() {
 		$mailAccount = new MailAccount();
 		$mailAccount->setUserId('testuser');
+		$mailAccount->setSentMailboxId(123);
 		/** @var Account|MockObject $account */
 		$account = $this->createMock(Account::class);
 		$account->method('getMailAccount')->willReturn($mailAccount);
+		$account->method('getName')->willReturn('Test User');
+		$account->method('getEMailAddress')->willReturn('test@user');
 		$alias = new Alias();
 		$alias->setAlias('a@d.com');
 		$messageData = NewMessageData::fromRequest($account, 'to@d.com', '', '', 'sub', 'bod');
@@ -145,12 +165,146 @@ class MailTransmissionTest extends TestCase {
 		$this->transmission->sendMessage($messageData, null, $alias);
 	}
 
-	public function testSendNewMessageWithCloudAttachments() {
+	public function testSendNewMessageWithMessageAsAttachment() {
 		$mailAccount = new MailAccount();
 		$mailAccount->setUserId('testuser');
+		$mailAccount->setSentMailboxId(123);
+
 		/** @var Account|MockObject $account */
 		$account = $this->createMock(Account::class);
 		$account->method('getMailAccount')->willReturn($mailAccount);
+		$account->method('getName')->willReturn('Test User');
+		$account->method('getEMailAddress')->willReturn('test@user');
+
+		$originalAttachment = [
+			[
+				'fileName' => 'Test attachment',
+				'id' => '123456',
+				'type' => 'message'
+			]
+		];
+
+		$messageData = NewMessageData::fromRequest($account, 'to@d.com', '', '', 'sub', 'bod', $originalAttachment);
+
+		$message = new Message();
+		$account->expects($this->once())
+			->method('newMessage')
+			->willReturn($message);
+		$transport = $this->createMock(Horde_Mail_Transport::class);
+		$this->smtpClientFactory->expects($this->once())
+			->method('create')
+			->with($account)
+			->willReturn($transport);
+
+		$attachmentMessage = new DbMessage();
+		$attachmentMessage->setMailboxId(1234);
+		$attachmentMessage->setUid(11);
+
+		$mailbox = new DbMailbox();
+		$mailbox->setAccountId(22);
+		$mailbox->setName('mock');
+
+		$client = $this->createMock(Horde_Imap_Client_Socket::class);
+		$this->imapClientFactory->expects($this->exactly(2))
+			->method('getClient')
+			->with($account)
+			->willReturn($client);
+
+		$this->mailManager->expects($this->once())
+			->method('getMessage')
+			->with($mailAccount->getUserId(), 123456)
+			->willReturn($attachmentMessage);
+		$this->mailManager->expects($this->once())
+			->method('getMailbox')
+			->with($mailAccount->getUserId(), $attachmentMessage->getMailboxId())
+			->willReturn($mailbox);
+
+		$source = 'da message';
+		$this->messageMapper->expects($this->once())
+			->method('getFullText')
+			->with(
+				$this->imapClientFactory->getClient($account),
+				$mailbox->getName(),
+				11
+			)
+			->willReturn($source);
+
+		$this->transmission->sendMessage($messageData, null);
+	}
+
+	public function testSendNewMessageWithAttachmentsFromEmail() {
+		$mailAccount = new MailAccount();
+		$mailAccount->setUserId('testuser');
+		$mailAccount->setSentMailboxId(123);
+
+		/** @var Account|MockObject $account */
+		$account = $this->createMock(Account::class);
+		$account->method('getMailAccount')->willReturn($mailAccount);
+		$account->method('getName')->willReturn('Test User');
+		$account->method('getEMailAddress')->willReturn('test@user');
+
+		$originalAttachment = [
+			[
+				'fileName' => 'Test attachment',
+				'id' => '2.2',
+				'messageId' => '100',
+				'type' => 'message-attachment'
+			]
+		];
+
+		$messageData = NewMessageData::fromRequest($account, 'to@d.com', '', '', 'sub', 'bod', $originalAttachment);
+
+		$message = new Message();
+		$account->expects($this->once())
+			->method('newMessage')
+			->willReturn($message);
+		$transport = $this->createMock(Horde_Mail_Transport::class);
+		$this->smtpClientFactory->expects($this->once())
+			->method('create')
+			->with($account)
+			->willReturn($transport);
+
+		$attachmentMessage = new DbMessage();
+		$attachmentMessage->setMailboxId(1234);
+		$attachmentMessage->setUid(11);
+
+		$mailbox = new DbMailbox();
+		$mailbox->setAccountId(22);
+		$mailbox->setName('mock');
+
+		$client = $this->createMock(Horde_Imap_Client_Socket::class);
+		$this->imapClientFactory->expects($this->exactly(2))
+			->method('getClient')
+			->with($account)
+			->willReturn($client);
+
+		$this->mailManager->expects($this->once())
+			->method('getMessage')
+			->with($mailAccount->getUserId(), $originalAttachment[0]['messageId'])
+			->willReturn($attachmentMessage);
+		$this->mailManager->expects($this->once())
+			->method('getMailbox')
+			->with($mailAccount->getUserId(), $attachmentMessage->getMailboxId())
+			->willReturn($mailbox);
+
+		$content = ['blablabla'];
+		$this->messageMapper->expects($this->once())
+			->method('getRawAttachments')
+			->with($this->imapClientFactory->getClient($account), $mailbox->getName(), $attachmentMessage->getUid(),[$originalAttachment[0]['id']])
+			->willReturn($content);
+
+		$this->transmission->sendMessage($messageData, null);
+	}
+
+	public function testSendNewMessageWithCloudAttachments() {
+		$mailAccount = new MailAccount();
+		$mailAccount->setUserId('testuser');
+		$mailAccount->setSentMailboxId(123);
+		/** @var Account|MockObject $account */
+		$account = $this->createMock(Account::class);
+		$account->method('getMailAccount')->willReturn($mailAccount);
+		$account->method('getName')->willReturn('Test User');
+		$account->method('getEMailAddress')->willReturn('test@user');
 		$attachmenst = [
 			[
 				'fileName' => 'cat.jpg',
@@ -188,9 +342,12 @@ class MailTransmissionTest extends TestCase {
 	public function testReplyToAnExistingMessage() {
 		$mailAccount = new MailAccount();
 		$mailAccount->setUserId('testuser');
+		$mailAccount->setSentMailboxId(123);
 		/** @var Account|MockObject $account */
 		$account = $this->createMock(Account::class);
 		$account->method('getMailAccount')->willReturn($mailAccount);
+		$account->method('getName')->willReturn('Test User');
+		$account->method('getEMailAddress')->willReturn('test@user');
 		$messageData = NewMessageData::fromRequest($account, 'to@d.com', '', '', 'sub', 'bod');
 		$folderId = 'INBOX';
 		$repliedMessageUid = 321;
@@ -214,9 +371,12 @@ class MailTransmissionTest extends TestCase {
 	public function testSaveDraft() {
 		$mailAccount = new MailAccount();
 		$mailAccount->setUserId('testuser');
+		$mailAccount->setDraftsMailboxId(123);
 		/** @var Account|MockObject $account */
 		$account = $this->createMock(Account::class);
 		$account->method('getMailAccount')->willReturn($mailAccount);
+		$account->method('getName')->willReturn('Test User');
+		$account->method('getEMailAddress')->willReturn('test@user');
 		$messageData = NewMessageData::fromRequest($account, 'to@d.com', '', '', 'sub', 'bod');
 		$message = new Message();
 		$account->expects($this->once())
@@ -229,8 +389,8 @@ class MailTransmissionTest extends TestCase {
 			->willReturn($client);
 		$draftsMailbox = new \OCA\Mail\Db\Mailbox();
 		$this->mailboxMapper->expects($this->once())
-			->method('findSpecial')
-			->with($account, 'drafts')
+			->method('findById')
+			->with(123)
 			->willReturn($draftsMailbox);
 		$this->messageMapper->expects($this->once())
 			->method('save')

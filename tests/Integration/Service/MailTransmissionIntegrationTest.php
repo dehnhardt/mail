@@ -27,6 +27,7 @@ use ChristophWurst\Nextcloud\Testing\TestUser;
 use OC;
 use OCA\Mail\Account;
 use OCA\Mail\Contracts\IAttachmentService;
+use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Contracts\IMailTransmission;
 use OCA\Mail\Db\MailAccount;
 use OCA\Mail\Db\MailAccountMapper;
@@ -37,6 +38,7 @@ use OCA\Mail\IMAP\MailboxSync;
 use OCA\Mail\IMAP\MessageMapper;
 use OCA\Mail\Model\NewMessageData;
 use OCA\Mail\Model\RepliedMessageData;
+use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\Attachment\UploadedFile;
 use OCA\Mail\Service\MailTransmission;
 use OCA\Mail\SMTP\SmtpClientFactory;
@@ -76,14 +78,15 @@ class MailTransmissionIntegrationTest extends TestCase {
 		$mapper = OC::$server->query(MailAccountMapper::class);
 		$mailAccount = MailAccount::fromParams([
 			'userId' => $this->user->getUID(),
+			'name' => 'Test User',
 			'email' => 'user@domain.tld',
-			'inboundHost' => 'localhost',
+			'inboundHost' => '127.0.0.1',
 			'inboundPort' => '993',
 			'inboundSslMode' => 'ssl',
 			'inboundUser' => 'user@domain.tld',
 			'inboundPassword' => $crypo->encrypt('mypassword'),
-			'outboundHost' => 'localhost',
-			'outboundPort' => '2525',
+			'outboundHost' => '127.0.0.1',
+			'outboundPort' => '25',
 			'outboundSslMode' => 'none',
 			'outboundUser' => 'user@domain.tld',
 			'outboundPassword' => $crypo->encrypt('mypassword'),
@@ -94,9 +97,16 @@ class MailTransmissionIntegrationTest extends TestCase {
 		$this->attachmentService = OC::$server->query(IAttachmentService::class);
 		$userFolder = OC::$server->getUserFolder($this->user->getUID());
 
+		// Make sure the mailbox preferences are set
+		/** @var MailboxSync $mbSync */
+		$mbSync = OC::$server->query(MailboxSync::class);
+		$mbSync->sync($this->account, new NullLogger(), true);
+
 		$this->transmission = new MailTransmission(
 			$userFolder,
+			OC::$server->query(AccountService::class),
 			$this->attachmentService,
+			OC::$server->query(IMailManager::class),
 			OC::$server->query(IMAPClientFactory::class),
 			OC::$server->query(SmtpClientFactory::class),
 			OC::$server->query(IEventDispatcher::class),
@@ -104,6 +114,12 @@ class MailTransmissionIntegrationTest extends TestCase {
 			OC::$server->query(MessageMapper::class),
 			OC::$server->query(LoggerInterface::class)
 		);
+	}
+
+	protected function tearDown(): void {
+		if ($this->client !== null) {
+			$this->client->logout();
+		}
 	}
 
 	public function testSendMail() {
@@ -122,7 +138,7 @@ class MailTransmissionIntegrationTest extends TestCase {
 		$this->attachmentService->addFile($this->user->getUID(), $file);
 		$message = NewMessageData::fromRequest($this->account, 'recipient@domain.com', null, null, 'greetings', 'hello there', [
 			[
-				'isLocal' => 'true',
+				'type' => 'local',
 				'id' => 13,
 			],
 		]);
@@ -137,7 +153,7 @@ class MailTransmissionIntegrationTest extends TestCase {
 		$userFolder->newFile('text.txt');
 		$message = NewMessageData::fromRequest($this->account, 'recipient@domain.com', null, null, 'greetings', 'hello there', [
 			[
-				'isLocal' => false,
+				'type' => 'Files',
 				'fileName' => 'text.txt',
 			],
 		]);

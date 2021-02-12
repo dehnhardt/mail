@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * @author Christoph Wurst <christoph@winzerhof-wurst.at>
  *
@@ -49,7 +51,7 @@ class MessageTest extends TestCase {
 
 	public function testFrom() {
 		$from = new AddressList([
-			new Address('Fritz', 'fritz@domain.tld'),
+			Address::fromRaw('Fritz', 'fritz@domain.tld'),
 		]);
 
 		$this->message->setFrom($from);
@@ -160,9 +162,8 @@ class MessageTest extends TestCase {
 		$expected->setType($mimeType);
 
 		$this->message->addAttachmentFromFiles($file);
-		$actual = $this->message->getCloudAttachments();
+		$actual = $this->message->getAttachments();
 
 		$this->assertCount(1, $actual);
-		//$this->assertEquals($expected, $actual[0]);
 	}
 }

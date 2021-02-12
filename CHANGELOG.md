@@ -1,6 +1,151 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+# 1.8.1 – 2021-02-03
+## Changed
+- Updated translations
+## Fixed
+- Filter out invalid UTF-8 in subjects
+- Regression that picks wrong attachment
+- Rendering accounts in the navigation even when authentication fails
+
+## 1.8.0 – 2021-01-20
+## Added
+- Drag and drop
+- Remember trusted senders
+- Message delivery notification
+- Unread mail dashboard widget
+- Forward original attachments
+- Possibility to add multiple files as attachments
+### Changed
+- Account settings moved to modal
+- Hide "All inboxes" if only one account is set up
+- Improve the ckeditor list plugin
+- Automatically sync mailbox on opening
+### Fixed
+- Always show Mail search results first
+- Improve reply button icon styling
+- Saving signature problems
+- Layout issue for header
+- Deleted drafts
+- The route for "Register as application for mail links"
+- Make links highlighted in the ckeditor
+- Show sender in avatar header in all screen sizes
+- The Dark theme on small screen
+- Improve defaults layout
+- Use consistent input vector size for the importance classifier
+
+## 1.7.2 – 2020-12-07
+### Fixed
+- Priority inbox classifier input vector size
+
+## 1.6.3 – 2020-12-07
+### Fixed
+- Priority inbox classifier input vector size
+
+## 1.5.5 – 2020-12-07
+### Fixed
+- Priority inbox classifier input vector size
+
+## 1.4.2 – 2020-12-07
+### Fixed
+- Priority inbox classifier input vector size
+- CKEditor crashes on Firefox
+
+## 1.7.1 – 2020-12-02
+### Fixed
+- Saving signatures
+- Deletion of previous draft
+- Mailto route
+- Php7.2 compatibility issues
+- Missing route for draft
+- Default editor mode
+- CKEditor crashes on Firefox
+
+## 1.6.2 – 2020-12-02
+### Fixed
+- Mail search results not shown on top
+- Saving signatures
+- Deletion of previous draft
+- Mailto route
+- Php7.2 compatibility issues
+- Missing route for draft
+- Default editor mode
+- CKEditor crashes on Firefox
+
+## 1.5.4 – 2020-12-02
+### Fixed
+- Mail search results not shown on top
+- Saving signatures
+- Deletion of previous draft
+- Mailto route
+- Missing route for draft
+- Default editor mode
+- CKEditor crashes on Firefox
+
+## 1.7.0 – 2020-11-11
+### Added
+* Possibility to move mailboxes
+* Improved HTML email rendering
+* Ability to edit existing messages as new ones
+### Changed
+* Admin documentation now contains more troubleshooting instructions
+* Show admin and developer documentation on app store
+### Fixed
+* Null error for messages with no sender information
+* Overlapping message with same timestamp
+* Wrong php7.2 support claimed in info.xml of v1.6.0
+* Unexpected borders on recipient pickers
+* Styling of automatic/manual account settings tabs
+
+## 1.6.1 – 2020-11-11
+### Fixed
+* Null error for messages with no sender information
+* Wrong php7.2 support claimed in info.xml of v1.6.0
+* Unexpected borders on recipient pickers
+* Styling of automatic/manual account settings tabs
+
+## 1.5.3 – 2020-11-11
+### Fixed
+* Null error for messages with no sender information
+* Unexpected borders on recipient pickers
+* Styling of automatic/manual account settings tabs
+
+## 1.6.0 – 2020-11-04
+### Added
+- Moving mails to other mailboxes of the same account (also usable on mobile)
+- New account preferences to pick the mailbox for draft, sent and trash mails
+- Important/favorite/read indicators inside the threaded view
+- Enhanced multiselect using the Shift key to select ranges
+### Changed
+- Minimum php version increased to 7.3 due to 7.2 EOL
+- Reply button is now a link – user can write the reply in a new tab
+- Internal code cleanup
+- Dependency updates
+### Fixed
+- Saving all attachments of an email to Nextcloud Files
+- Quoting the forwarded email
+- Seen/unseen handling in multiselect
+- Font weight in thread view
+- Font color of "Add account" button in app settings
+- Browser error when navigating away from a draft that hasn't loaded yet
+
+## 1.5.2 – 2020-11-04
+### Fixed
+- Saving all attachments of an email to Nextcloud Files
+- Quoting the forwarded email
+- Seen/unseen handling in multiselect
+
+## 1.5.1 - 2020-10-27
+- Fix displaying of messages with empty from field
+- Fix translation of delete account dialogue
+- Fix the overlapping between 2 threads
+- Fix saving aliases
+- Improve the message-frame height to use the remaining space
+- Change account-settings button colour to fit the theme
+- Make sure the email is valid UTF-8
+- Make the deserialized thread root ID nullable
+
 ## 1.5.0 - 2020-10-03
 ### Added
 - Threading: related message are shown as conversations

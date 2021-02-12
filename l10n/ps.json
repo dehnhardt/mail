@@ -4,11 +4,13 @@
     "Password" : "پاسورډ",
     "Save" : "ساتل",
     "Send" : "لېږل",
-    "Unselect" : "سشیبشسیب",
-    "Select" : "ټاکل",
-    "Delete" : "ړنګول",
+    "Choose" : "غوره کړئ",
     "Favorites" : "په نښه شوي",
     "Other" : "نور",
+    "Unselect" : "سشیبشسیب",
+    "Select" : "ټاکل",
+    "Move" : "انتقال",
+    "Delete" : "ړنګول",
     "Settings" : "سمونې",
     "Cancel" : "پرېښول"
 },"pluralForm" :"nplurals=2; plural=(n != 1);"

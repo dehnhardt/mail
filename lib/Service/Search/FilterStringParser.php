@@ -25,17 +25,7 @@ declare(strict_types=1);
 
 namespace OCA\Mail\Service\Search;
 
-use Horde_Imap_Client;
-
 class FilterStringParser {
-	private const FLAG_MAP = [
-		'answered' => [Horde_Imap_Client::FLAG_ANSWERED, true],
-		'read' => [Horde_Imap_Client::FLAG_SEEN, true],
-		'starred' => [Horde_Imap_Client::FLAG_FLAGGED, true],
-		'unread' => [Horde_Imap_Client::FLAG_SEEN, false],
-		'important' => ['\\important', true],
-	];
-
 	public function parse(?string $filter): SearchQuery {
 		$query = new SearchQuery();
 		if (empty($filter)) {
@@ -59,17 +49,74 @@ class FilterStringParser {
 			return false;
 		}
 
-		list($type, $param) = explode(':', $token);
+		[$type, $param] = explode(':', $token);
 		$type = strtolower($type);
+		$flagMap = [
+			'answered' => Flag::is(Flag::ANSWERED),
+			'read' => Flag::is(Flag::SEEN),
+			'starred' => Flag::is(Flag::FLAGGED),
+			'unread' => Flag::not(Flag::SEEN),
+			'important' => Flag::is(Flag::IMPORTANT),
+		];
 
 		switch ($type) {
 			case 'is':
 			case 'not':
-				if (array_key_exists($param, self::FLAG_MAP)) {
-					$flag = self::FLAG_MAP[$param];
-					$query->addFlag($flag[0], $type === 'is' ? $flag[1] : !$flag[1]);
+				if (array_key_exists($param, $flagMap)) {
+					/** @var Flag $flag */
+					$flag = $flagMap[$param];
+					$query->addFlag($type === 'is' ? $flag : $flag->invert());
 					return true;
 				}
+				if ($param === 'pi-important') {
+					// We assume this is about 'is' and not 'not'
+					// imp && ~read
+					$query->addFlagExpression(
+						FlagExpression::and(
+							Flag::is(Flag::IMPORTANT),
+							Flag::not(Flag::SEEN)
+						)
+					);
+
+					return true;
+				}
+				if ($param === 'pi-starred') {
+					// We assume this is about 'is' and not 'not'
+					// fav /\ (~imp \/ (imp /\ read))
+					$query->addFlagExpression(
+						FlagExpression::and(
+							Flag::is(Flag::FLAGGED),
+							FlagExpression::or(
+								Flag::not(Flag::IMPORTANT),
+								FlagExpression::and(
+									Flag::is(Flag::IMPORTANT),
+									Flag::is(Flag::SEEN)
+								)
+							)
+						)
+					);
+
+					return true;
+				}
+				if ($param === 'pi-other') {
+					// We assume this is about 'is' and not 'not'
+					// ~fav && (~imp || (imp && read))
+					$query->addFlagExpression(
+						FlagExpression::and(
+							Flag::not(Flag::FLAGGED),
+							FlagExpression::or(
+								Flag::not(Flag::IMPORTANT),
+								FlagExpression::and(
+									Flag::is(Flag::IMPORTANT),
+									Flag::is(Flag::SEEN)
+								)
+							)
+						)
+					);
+
+					return true;
+				}
+
 				break;
 			case 'from':
 				$query->addFrom($param);

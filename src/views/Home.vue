@@ -1,5 +1,7 @@
 <template>
 	<Content v-shortkey.once="['c']" app-name="mail" @shortkey.native="onNewMessage">
+		<AppDetailsToggle v-if="isMobile && isThreadShown"
+			@close="hideMessage" />
 		<Navigation />
 		<MailboxThread v-if="activeAccount" :account="activeAccount" :mailbox="activeMailbox" />
 	</Content>
@@ -7,6 +9,7 @@
 
 <script>
 import Content from '@nextcloud/vue/dist/Components/Content'
+import AppDetailsToggle from '../components/AppDetailsToggle'
 
 import isMobile from '@nextcloud/vue/dist/Mixins/isMobile'
 import logger from '../logger'
@@ -19,6 +22,7 @@ export default {
 		Content,
 		MailboxThread,
 		Navigation,
+		AppDetailsToggle,
 	},
 	mixins: [isMobile],
 	computed: {
@@ -31,22 +35,8 @@ export default {
 		menu() {
 			return this.buildMenu()
 		},
-	},
-	watch: {
-		$route(to, from) {
-			if (
-				from.name === 'message'
-				&& to.name === 'mailbox'
-				&& !this.isMobile
-				&& from.params.mailboxId === to.params.mailboxId
-				&& from.params.filter === to.params.filter
-			) {
-				logger.warn("navigation from a message to just the mailbox. we don't want that, do we? let's go back", {
-					to,
-					from,
-				})
-				this.$router.replace(from)
-			}
+		isThreadShown() {
+			return this.$route.params.threadId
 		},
 	},
 	created() {
@@ -111,8 +101,18 @@ export default {
 				},
 			})
 		},
+		hideMessage() {
+			this.$router.replace({
+				name: 'mailbox',
+				params: {
+					mailboxId: this.$route.params.mailboxId,
+					filter: this.$route.params?.filter,
+				},
+			})
+		},
 	},
 }
+
 </script>
 
 <style lang="scss" scoped>

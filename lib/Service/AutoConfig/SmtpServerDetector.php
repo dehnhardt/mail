@@ -37,11 +37,6 @@ class SmtpServerDetector {
 	/** @var SystemConfig */
 	private $systemConfig;
 
-	/**
-	 * @param MxRecord $mxRecord
-	 * @param SmtpConnectivityTester $smtpTester
-	 * @param
-	 */
 	public function __construct(MxRecord $mxRecord,
 								SmtpConnectivityTester $smtpTester,
 								SystemConfig $systemConfig) {
@@ -65,7 +60,7 @@ class SmtpServerDetector {
 
 		// splitting the email address into user and host part
 		// TODO: use horde libs for email address parsing
-		list($user, $host) = explode("@", $email);
+		[$user, $host] = explode("@", $email);
 
 		/*
 		 * Try to get the mx record for the email address

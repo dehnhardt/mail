@@ -121,7 +121,9 @@
 					required>
 
 				<h3>{{ t('mail', 'SMTP Settings') }}</h3>
+				<label for="man-smtp-host">{{ t('mail', 'SMTP Host') }}</label>
 				<input
+					id="man-smtp-host"
 					ref="smtpHost"
 					v-model="manualConfig.smtpHost"
 					type="text"
@@ -349,18 +351,19 @@ export default {
 }
 </script>
 
-<style>
-.tabs-component-tabs {
+<style lang="scss" scoped>
+::v-deep .tabs-component-tabs {
 	display: flex;
 }
 
-.tabs-component-tab {
+::v-deep .tabs-component-tab {
 	flex-grow: 1;
 	text-align: center;
 	color: var(--color-text-lighter);
+	margin-bottom: 10px;
 }
 
-.tabs-component-tab.is-active {
+::v-deep .tabs-component-tab.is-active {
 	border-bottom: 1px solid black;
 	font-weight: bold;
 }
@@ -394,6 +397,12 @@ label.button {
 	display: inline-block;
 	text-align: center;
 	flex-grow: 1;
+}
+label.primary {
+	color: var(--color-main-background);
+}
+input.primary {
+	color: var(--color-main-background);
 }
 
 input[type='radio'] {

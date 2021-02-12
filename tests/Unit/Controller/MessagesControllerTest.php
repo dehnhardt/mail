@@ -26,10 +26,13 @@ namespace OCA\Mail\Tests\Unit\Controller;
 
 use ChristophWurst\Nextcloud\Testing\TestCase;
 use OC\AppFramework\Http\Request;
+use OC\Security\CSP\ContentSecurityPolicyNonceManager;
 use OCA\Mail\Account;
 use OCA\Mail\Attachment;
 use OCA\Mail\Contracts\IMailManager;
 use OCA\Mail\Contracts\IMailSearch;
+use OCA\Mail\Contracts\IMailTransmission;
+use OCA\Mail\Contracts\ITrustedSenderService;
 use OCA\Mail\Controller\MessagesController;
 use OCA\Mail\Exception\ServiceException;
 use OCA\Mail\Http\AttachmentDownloadResponse;
@@ -106,6 +109,15 @@ class MessagesControllerTest extends TestCase {
 	/** @var MockObject|IURLGenerator */
 	private $urlGenerator;
 
+	/** @var MockObject|ContentSecurityPolicyNonceManager */
+	private $nonceManager;
+
+	/** @var MockObject|ITrustedSenderService */
+	private $trustedSenderService;
+
+	/** @var MockObject|IMailTransmission */
+	private $mailTransmission;
+
 	/** @var ITimeFactory */
 	private $oldFactory;
 
@@ -125,6 +137,9 @@ class MessagesControllerTest extends TestCase {
 		$this->l10n = $this->createMock(IL10N::class);
 		$this->mimeTypeDetector = $this->createMock(IMimeTypeDetector::class);
 		$this->urlGenerator = $this->createMock(IURLGenerator::class);
+		$this->nonceManager = $this->createMock(ContentSecurityPolicyNonceManager::class);
+		$this->trustedSenderService = $this->createMock(ITrustedSenderService::class);
+		$this->mailTransmission = $this->createMock(IMailTransmission::class);
 
 		$timeFactory = $this->createMocK(ITimeFactory::class);
 		$timeFactory->expects($this->any())
@@ -147,7 +162,10 @@ class MessagesControllerTest extends TestCase {
 			$this->logger,
 			$this->l10n,
 			$this->mimeTypeDetector,
-			$this->urlGenerator
+			$this->urlGenerator,
+			$this->nonceManager,
+			$this->trustedSenderService,
+			$this->mailTransmission
 		);
 
 		$this->account = $this->createMock(Account::class);
@@ -177,39 +195,58 @@ class MessagesControllerTest extends TestCase {
 		$message->setUid(123);
 		$mailbox->setAccountId($accountId);
 		$mailbox->setName($folderId);
-		$this->mailManager->expects($this->once())
+		$this->mailManager->expects($this->exactly(2))
 			->method('getMessage')
 			->with($this->userId, $messageId)
 			->willReturn($message);
-		$this->mailManager->expects($this->once())
+		$this->mailManager->expects($this->exactly(2))
 			->method('getMailbox')
 			->with($this->userId, $mailboxId)
 			->willReturn($mailbox);
-		$this->accountService->expects($this->once())
+		$this->accountService->expects($this->exactly(2))
 			->method('find')
 			->with($this->equalTo($this->userId), $this->equalTo($accountId))
 			->will($this->returnValue($this->account));
 		$imapMessage = $this->createMock(IMAPMessage::class);
-		$this->mailManager->expects($this->once())
+		$this->mailManager->expects($this->exactly(2))
 			->method('getImapMessage')
 			->with($this->account, $mailbox, 123, true)
 			->willReturn($imapMessage);
 
-		$expectedResponse = new HtmlResponse('');
-		$expectedResponse->cacheFor(3600);
-		if (class_exists('\OCP\AppFramework\Http\ContentSecurityPolicy')) {
-			$policy = new ContentSecurityPolicy();
-			$policy->allowEvalScript(false);
-			$policy->disallowScriptDomain('\'self\'');
-			$policy->disallowConnectDomain('\'self\'');
-			$policy->disallowFontDomain('\'self\'');
-			$policy->disallowMediaDomain('\'self\'');
-			$expectedResponse->setContentSecurityPolicy($policy);
-		}
+		$expectedPlainResponse = HtmlResponse::plain('');
+		$expectedPlainResponse->cacheFor(3600);
 
-		$actualResponse = $this->controller->getHtmlBody($messageId);
+		$nonce = "abc123";
+		$relativeScriptUrl = "/script.js";
+		$scriptUrl = "next.cloud/script.js";
+		$this->nonceManager->expects($this->once())
+			->method('getNonce')
+			->willReturn($nonce);
+		$this->urlGenerator->expects($this->once())
+			->method('linkTo')
+			->with('mail', 'js/htmlresponse.js')
+			->willReturn($relativeScriptUrl);
+		$this->urlGenerator->expects($this->once())
+			->method('getAbsoluteURL')
+			->with($relativeScriptUrl)
+			->willReturn($scriptUrl);
+		$expectedRichResponse = HtmlResponse::withResizer('', $nonce, $scriptUrl);
+		$expectedRichResponse->cacheFor(3600);
 
-		$this->assertEquals($expectedResponse, $actualResponse);
+		$policy = new ContentSecurityPolicy();
+		$policy->allowEvalScript(false);
+		$policy->disallowScriptDomain('\'self\'');
+		$policy->disallowConnectDomain('\'self\'');
+		$policy->disallowFontDomain('\'self\'');
+		$policy->disallowMediaDomain('\'self\'');
+		$expectedPlainResponse->setContentSecurityPolicy($policy);
+		$expectedRichResponse->setContentSecurityPolicy($policy);
+
+		$actualPlainResponse = $this->controller->getHtmlBody($messageId, true);
+		$actualRichResponse = $this->controller->getHtmlBody($messageId, false);
+
+		$this->assertEquals($expectedPlainResponse, $actualPlainResponse);
+		$this->assertEquals($expectedRichResponse, $actualRichResponse);
 	}
 
 	public function testDownloadAttachment() {
@@ -363,7 +400,7 @@ class MessagesControllerTest extends TestCase {
 			->will($this->returnValue($this->mailbox));
 		$this->mailbox->expects($this->once())
 			->method('getMessage')
-			->with($id)
+			->with($uid)
 			->will($this->returnValue($this->message));
 		$this->message->attachments = [
 			[
@@ -412,7 +449,7 @@ class MessagesControllerTest extends TestCase {
 		$mailboxId = 987;
 		$id = 123;
 		$flags = [
-			'unseen' => false
+			'seen' => false
 		];
 		$message = new \OCA\Mail\Db\Message();
 		$message->setUid(444);
@@ -434,7 +471,7 @@ class MessagesControllerTest extends TestCase {
 			->will($this->returnValue($this->account));
 		$this->mailManager->expects($this->once())
 			->method('flagMessage')
-			->with($this->account, 'INBOX', 444, 'unseen', false);
+			->with($this->account, 'INBOX', 444, 'seen', false);
 
 		$expected = new JSONResponse();
 		$response = $this->controller->setFlags(
@@ -538,7 +575,7 @@ class MessagesControllerTest extends TestCase {
 			->with($this->equalTo($this->userId), $this->equalTo($accountId))
 			->will($this->throwException(new DoesNotExistException('')));
 
-		$expected = new JSONResponse(null, Http::STATUS_FORBIDDEN);
+		$expected = new JSONResponse([], Http::STATUS_FORBIDDEN);
 
 		$this->assertEquals($expected, $this->controller->destroy($id));
 	}

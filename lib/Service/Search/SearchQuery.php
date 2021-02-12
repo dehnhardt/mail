@@ -30,8 +30,11 @@ class SearchQuery {
 	/** @var int|null */
 	private $cursor;
 
-	/** @var bool[] */
+	/** @var Flag[] */
 	private $flags = [];
+
+	/** @var FlagExpression[] */
+	private $flagExpressions = [];
 
 	/** @var string[] */
 	private $to = [];
@@ -53,6 +56,7 @@ class SearchQuery {
 
 	/**
 	 * @return int|null
+	 * @psalm-mutation-free
 	 */
 	public function getCursor(): ?int {
 		return $this->cursor;
@@ -66,14 +70,26 @@ class SearchQuery {
 	}
 
 	/**
-	 * @return bool[]
+	 * @return Flag[]
+	 * @psalm-mutation-free
 	 */
 	public function getFlags(): array {
 		return $this->flags;
 	}
 
-	public function addFlag(string $flag, bool $value = true): void {
-		$this->flags[$flag] = $value;
+	public function addFlag(Flag $flag): void {
+		$this->flags[] = $flag;
+	}
+
+	/**
+	 * @return FlagExpression[]
+	 */
+	public function getFlagExpressions(): array {
+		return $this->flagExpressions;
+	}
+
+	public function addFlagExpression(FlagExpression $expression) {
+		$this->flagExpressions[] = $expression;
 	}
 
 	/**

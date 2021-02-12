@@ -128,14 +128,18 @@ class PageController extends Controller {
 			$accountsJson[] = $json;
 		}
 
+		$accountSettings = $this->preferences->getPreference('account-settings', json_encode([]));
+
 		$user = $this->userSession->getUser();
 		$response = new TemplateResponse($this->appName, 'index',
 			[
 				'debug' => $this->config->getSystemValue('debug', false),
+				'attachment-size-limit' => $this->config->getSystemValue('app.mail.attachment-size-limit', 0),
 				'app-version' => $this->config->getAppValue('mail', 'installed_version'),
 				'accounts' => base64_encode(json_encode($accountsJson)),
 				'external-avatars' => $this->preferences->getPreference('external-avatars', 'true'),
 				'collect-data' => $this->preferences->getPreference('collect-data', 'true'),
+				'account-settings' => base64_encode($accountSettings),
 			]);
 		$this->initialStateService->provideInitialState(
 			Application::APP_ID,
@@ -171,16 +175,6 @@ class PageController extends Controller {
 	 *
 	 * @return TemplateResponse
 	 */
-	public function accountSettings(int $id): TemplateResponse {
-		return $this->index();
-	}
-
-	/**
-	 * @NoAdminRequired
-	 * @NoCSRFRequired
-	 *
-	 * @return TemplateResponse
-	 */
 	public function mailbox(int $id): TemplateResponse {
 		return $this->index();
 	}
@@ -192,6 +186,16 @@ class PageController extends Controller {
 	 * @return TemplateResponse
 	 */
 	public function thread(int $mailboxId, int $id): TemplateResponse {
+		return $this->index();
+	}
+
+	/**
+	 * @NoAdminRequired
+	 * @NoCSRFRequired
+	 *
+	 * @return TemplateResponse
+	 */
+	public function draft(int $mailboxId, int $draftId): TemplateResponse {
 		return $this->index();
 	}
 
@@ -218,10 +222,17 @@ class PageController extends Controller {
 			function (&$value, $key) {
 				$value = "$key=" . urlencode($value);
 			});
-
-		$hashParams = '#mailto?' . implode('&', $params);
-
-		$baseUrl = $this->urlGenerator->linkToRoute("mail.page.index");
-		return new RedirectResponse($baseUrl . $hashParams);
+		$name = '?' . implode('&', $params);
+		$baseUrl = $this->urlGenerator->linkToRoute('mail.page.mailto');
+		return new RedirectResponse($baseUrl . $name);
+	}
+	/**
+	 * @NoAdminRequired
+	 * @NoCSRFRequired
+	 *
+	 * @return TemplateResponse
+	 */
+	public function mailto(): TemplateResponse {
+		return $this->index();
 	}
 }

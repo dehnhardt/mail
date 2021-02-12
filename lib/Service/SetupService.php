@@ -95,10 +95,13 @@ class SetupService {
 	 * @param string $smtpUser
 	 * @param string $smtpPassword
 	 * @param string $uid
+	 * @param int|null $accountId
 	 *
 	 * @throws ServiceException
+	 *
+	 * @return Account|null
 	 */
-	public function createNewAccount($accountName, $emailAddress, $imapHost, $imapPort, $imapSslMode, $imapUser, $imapPassword, $smtpHost, $smtpPort, $smtpSslMode, $smtpUser, $smtpPassword, $uid, $accountId = null) {
+	public function createNewAccount($accountName, $emailAddress, $imapHost, $imapPort, $imapSslMode, $imapUser, $imapPassword, $smtpHost, $smtpPort, $smtpSslMode, $smtpUser, $smtpPassword, $uid, ?int $accountId = null): ?Account {
 		$this->logger->info('Setting up manually configured account');
 		$newAccount = new MailAccount([
 			'accountId' => $accountId,
@@ -116,20 +119,17 @@ class SetupService {
 			'smtpPassword' => $smtpPassword
 		]);
 		$newAccount->setUserId($uid);
-		$newAccount->setInboundPassword($this->crypto->encrypt($newAccount->getInboundPassword()));
-		$newAccount->setOutboundPassword($this->crypto->encrypt($newAccount->getOutboundPassword()));
+		$newAccount->setInboundPassword($this->crypto->encrypt($imapPassword));
+		$newAccount->setOutboundPassword($this->crypto->encrypt($smtpPassword));
 
 		$account = new Account($newAccount);
 		$this->logger->debug('Connecting to account {account}', ['account' => $newAccount->getEmail()]);
 		$transport = $this->smtpClientFactory->create($account);
 		$account->testConnectivity($transport);
 
-		if ($newAccount) {
-			$this->accountService->save($newAccount);
-			$this->logger->debug("account created " . $newAccount->getId());
-			return new Account($newAccount);
-		}
+		$this->accountService->save($newAccount);
+		$this->logger->debug("account created " . $newAccount->getId());
 
-		return null;
+		return $account;
 	}
 }

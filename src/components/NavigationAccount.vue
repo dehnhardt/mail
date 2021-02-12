@@ -38,17 +38,20 @@
 			<ActionText v-if="!account.isUnified" icon="icon-info" :title="t('mail', 'Quota')">
 				{{ quotaText }}
 			</ActionText>
-			<ActionRouter :to="settingsRoute" icon="icon-settings">
+			<ActionButton icon="icon-settings"
+				:close-after-click="true"
+				@click="showAccountSettings"
+				@shortkey="toggleAccountSettings">
 				{{ t('mail', 'Account settings') }}
-			</ActionRouter>
+			</ActionButton>
 			<ActionCheckbox
 				:checked="account.showSubscribedOnly"
 				:disabled="savingShowOnlySubscribed"
 				@update:checked="changeShowSubscribedOnly">
-				{{ t('mail', 'Show only subscribed folders') }}
+				{{ t('mail', 'Show only subscribed mailboxes') }}
 			</ActionCheckbox>
 			<ActionButton v-if="!editing" icon="icon-folder" @click="openCreateMailbox">
-				{{ t('mail', 'Add folder') }}
+				{{ t('mail', 'Add mailbox') }}
 			</ActionButton>
 			<ActionInput v-if="editing" icon="icon-folder" @submit.prevent.stop="createMailbox" />
 			<ActionText v-if="showSaving" icon="icon-loading-small">
@@ -64,13 +67,15 @@
 				{{ t('mail', 'Remove account') }}
 			</ActionButton>
 		</template>
+		<template #extra>
+			<AccountSettings :open.sync="showSettings" :account="account" />
+		</template>
 	</AppNavigationItem>
 </template>
 
 <script>
 import AppNavigationItem from '@nextcloud/vue/dist/Components/AppNavigationItem'
 import AppNavigationIconBullet from '@nextcloud/vue/dist/Components/AppNavigationIconBullet'
-import ActionRouter from '@nextcloud/vue/dist/Components/ActionRouter'
 import ActionButton from '@nextcloud/vue/dist/Components/ActionButton'
 import ActionCheckbox from '@nextcloud/vue/dist/Components/ActionCheckbox'
 import ActionInput from '@nextcloud/vue/dist/Components/ActionInput'
@@ -81,17 +86,18 @@ import { generateUrl } from '@nextcloud/router'
 import { calculateAccountColor } from '../util/AccountColor'
 import logger from '../logger'
 import { fetchQuota } from '../service/AccountService'
+import AccountSettings from './AccountSettings'
 
 export default {
 	name: 'NavigationAccount',
 	components: {
 		AppNavigationItem,
 		AppNavigationIconBullet,
-		ActionRouter,
 		ActionButton,
 		ActionCheckbox,
 		ActionInput,
 		ActionText,
+		AccountSettings,
 	},
 	props: {
 		account: {
@@ -100,7 +106,7 @@ export default {
 		},
 		firstMailbox: {
 			type: Object,
-			required: true,
+			default: () => undefined,
 		},
 		isFirst: {
 			type: Boolean,
@@ -121,26 +127,23 @@ export default {
 			quota: undefined,
 			editing: false,
 			showSaving: false,
+			showSettings: false,
 		}
 	},
 	computed: {
 		visible() {
 			return this.account.isUnified !== true && this.account.visible !== false
 		},
-		settingsRoute() {
-			return {
-				name: 'accountSettings',
-				params: {
-					accountId: this.account.id,
-				},
-			}
-		},
 		firstMailboxRoute() {
-			return {
-				name: 'mailbox',
-				params: {
-					mailboxId: this.firstMailbox.databaseId,
-				},
+			if (this.firstMailbox) {
+				return {
+					name: 'mailbox',
+					params: {
+						mailboxId: this.firstMailbox.databaseId,
+					},
+				}
+			} else {
+				return ''
 			}
 		},
 		id() {
@@ -266,6 +269,18 @@ export default {
 			} else {
 				this.quota = quota
 			}
+		},
+		/**
+		 * Toggles the account settings overview
+		 */
+		toggleAccountSettings() {
+			this.displayAccountSettings = !this.displayAccountSettings
+		},
+		/**
+		 * Shows the account settings
+		 */
+		showAccountSettings() {
+			this.showSettings = true
 		},
 	},
 }

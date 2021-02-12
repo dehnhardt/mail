@@ -24,8 +24,12 @@ namespace OCA\Mail\Db;
 
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
+/**
+ * @template-extends QBMapper<LocalAttachment>
+ */
 class LocalAttachmentMapper extends QBMapper {
 
 	/**
@@ -38,18 +42,16 @@ class LocalAttachmentMapper extends QBMapper {
 	/**
 	 * @throws DoesNotExistException
 	 *
-	 * @param int $userId
+	 * @param string $userId
 	 * @param int $id
-	 *
-	 * @return LocalAttachment
 	 */
-	public function find($userId, $id) {
+	public function find(string $userId, int $id): LocalAttachment {
 		$qb = $this->db->getQueryBuilder();
 		$query = $qb
 			->select('*')
 			->from($this->getTableName())
 			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-			->andWhere($qb->expr()->eq('id', $qb->createNamedParameter($id)));
+			->andWhere($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT), IQueryBuilder::PARAM_INT));
 
 		return $this->findEntity($query);
 	}

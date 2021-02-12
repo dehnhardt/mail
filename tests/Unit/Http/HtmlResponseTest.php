@@ -34,9 +34,13 @@ class HtmlResponseTest extends TestCase {
 	 * @param $contentType
 	 */
 	public function testIt($content) {
-		$resp = new HtmlResponse($content);
-		$injectedStyles = "<style>* { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Cantarell, Ubuntu, 'Helvetica Neue', Arial, 'Noto Color Emoji', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }</style>";
-		$this->assertEquals($injectedStyles . $content, $resp->render());
+		$nonce = "abc123";
+		$scriptUrl = "next.cloud/script.js";
+		$plainResp = HtmlResponse::plain($content);
+		$richResp = HtmlResponse::withResizer($content, $nonce, $scriptUrl);
+
+		$this->assertStringContainsString("<script nonce=\"$nonce\" src=\"$scriptUrl\"></script>", $richResp->render());
+		$this->assertEquals($content, $plainResp->render());
 	}
 
 	public function providesResponseData() {

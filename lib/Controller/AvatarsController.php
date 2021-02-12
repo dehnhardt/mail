@@ -74,7 +74,7 @@ class AvatarsController extends Controller {
 
 			// Debounce this a bit
 			// (cache for one day)
-			$response->cacheFor(24*60*60);
+			$response->cacheFor(24 * 60 * 60);
 
 			return $response;
 		}
@@ -96,12 +96,12 @@ class AvatarsController extends Controller {
 	 * @return Response
 	 */
 	public function image(string $email): Response {
-		if (is_null($email) || empty($email)) {
+		if (empty($email)) {
 			return new JSONResponse([], Http::STATUS_BAD_REQUEST);
 		}
 
 		$imageData = $this->avatarService->getAvatarImage($email, $this->uid);
-		list($avatar, $image) = $imageData;
+		[$avatar, $image] = $imageData;
 
 		if (is_null($imageData) || !$avatar->isExternal()) {
 			// This could happen if the cache invalidated meanwhile

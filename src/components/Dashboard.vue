@@ -2,6 +2,7 @@
   - @copyright Copyright (c) 2020 Julius Härtl <jus@bitgrid.net>
   -
   - @author Julius Härtl <jus@bitgrid.net>
+  - @author Richard Steinmetz <richard@steinmetz.cloud>
   -
   - @license GNU AGPL version 3 or any later version
   -
@@ -27,7 +28,10 @@
 		@hide="() => {}"
 		@markDone="() => {}">
 		<template v-slot:default="{ item }">
-			<DashboardWidgetItem :target-url="itemTargetUrl(item)" :main-text="itemMainText(item)" :sub-text="itemSubText(item)">
+			<DashboardWidgetItem :class="{unread: itemUnread(item)}"
+				:target-url="itemTargetUrl(item)"
+				:main-text="itemMainText(item)"
+				:sub-text="itemSubText(item)">
 				<template v-slot:avatar>
 					<Avatar v-if="item.from"
 						:email="item.from[0].email"
@@ -74,6 +78,12 @@ export default {
 		DashboardWidgetItem,
 		EmptyContent,
 	},
+	props: {
+		query: {
+			type: String,
+			required: true,
+		},
+	},
 	data() {
 		return {
 			messages: [],
@@ -113,7 +123,7 @@ export default {
 		})
 
 		await Promise.all(inboxes.map(async(mailbox) => {
-			const messages = await fetchEnvelopes(mailbox.databaseId, 'is:important', undefined, 10)
+			const messages = await fetchEnvelopes(mailbox.databaseId, this.query, undefined, 10)
 			this.messages = this.messages !== null ? [...this.messages, ...messages] : messages
 			this.fetchedAccounts++
 		}))
@@ -130,11 +140,14 @@ export default {
 		itemTargetUrl(item) {
 			return generateUrl(`/apps/mail/box/priority/thread/${item.databaseId}`)
 		},
+		itemUnread(item) {
+			return !item.flags.seen
+		},
 	},
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 #mail--empty-content {
 	text-align: center;
 	margin-top: 5vh;
@@ -142,5 +155,8 @@ export default {
 .no-account {
 	margin-top: 5vh;
 	margin-right: 5px;
+}
+.unread ::v-deep .item__details {
+	font-weight: bold;
 }
 </style>

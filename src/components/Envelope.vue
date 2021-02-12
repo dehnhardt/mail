@@ -1,5 +1,16 @@
 <template>
-	<router-link class="app-content-list-item" :class="{seen: data.flags.seen, draft, selected: selected}" :to="link">
+	<router-link
+		v-draggable-envelope="{
+			accountId: data.accountId ? data.accountId : mailbox.accountId,
+			mailboxId: data.mailboxId,
+			envelopeId: data.databaseId,
+			draggableLabel: `${data.subject} (${data.from[0].label})`,
+			selectedEnvelopes,
+		}"
+		class="app-content-list-item"
+		:class="{seen: data.flags.seen, draft, selected: selected}"
+		:to="link"
+		:data-envelope-id="data.databaseId">
 		<div
 			v-if="mailbox.isUnified"
 			class="mail-message-account-color"
@@ -27,13 +38,18 @@
 					class="checkbox"
 					type="checkbox"
 					:checked="selected">
-				<label :for="`select-checkbox-${data.uid}`" @click.prevent="toggleSelected" />
+				<label
+					:for="`select-checkbox-${data.uid}`"
+					@click.exact.prevent="toggleSelected"
+					@click.shift.prevent="onSelectMultiple" />
 			</p>
 		</div>
-		<div class="app-content-list-item-line-one" :title="addresses">
+		<div class="app-content-list-item-line-one"
+			:title="addresses">
 			{{ addresses }}
 		</div>
-		<div class="app-content-list-item-line-two" :title="data.subject">
+		<div class="app-content-list-item-line-two"
+			:title="data.subject">
 			<span v-if="data.flags.answered" class="icon-reply" />
 			<span v-if="data.flags.hasAttachments === true" class="icon-public icon-attachment" />
 			<span v-if="draft" class="draft">
@@ -44,58 +60,35 @@
 		<div class="app-content-list-item-details date">
 			<Moment :timestamp="data.dateInt" />
 		</div>
-		<Actions class="app-content-list-item-menu"
-			menu-align="right"
-			event=""
-			@click.native.prevent>
-			<ActionButton icon="icon-important" @click.prevent="onToggleImportant">
-				{{
-					data.flags.important ? t('mail', 'Mark unimportant') : t('mail', 'Mark important')
-				}}
-			</ActionButton>
-			<ActionButton icon="icon-starred" @click.prevent="onToggleFlagged">
-				{{
-					data.flags.flagged ? t('mail', 'Mark unfavorite') : t('mail', 'Mark favorite')
-				}}
-			</ActionButton>
-			<ActionButton icon="icon-mail" @click.prevent="onToggleSeen">
-				{{
-					data.flags.seen ? t('mail', 'Mark unread') : t('mail', 'Mark read')
-				}}
-			</ActionButton>
-			<ActionButton icon="icon-junk" @click.prevent="onToggleJunk">
-				{{
-					data.flags.junk ? t('mail', 'Mark not spam') : t('mail', 'Mark as spam')
-				}}
-			</ActionButton>
-			<ActionButton icon="icon-checkmark" :close-after-click="true" @click.prevent="toggleSelected">
-				{{
-					selected ? t('mail', 'Unselect') : t('mail', 'Select')
-				}}
-			</ActionButton>
-			<ActionButton icon="icon-delete" @click.prevent="onDelete">
-				{{ t('mail', 'Delete') }}
-			</ActionButton>
-		</Actions>
+		<MenuEnvelope class="app-content-list-item-menu"
+			:envelope="data"
+			:mailbox="mailbox"
+			:is-selected="selected"
+			:with-select="true"
+			:with-show-source="false"
+			@unselect="unselect"
+			@update:selected="toggleSelected" />
 	</router-link>
 </template>
 
 <script>
-import Actions from '@nextcloud/vue/dist/Components/Actions'
-import ActionButton from '@nextcloud/vue/dist/Components/ActionButton'
+import MenuEnvelope from './MenuEnvelope'
 import Moment from './Moment'
 import importantSvg from '../../img/important.svg'
 
 import Avatar from './Avatar'
 import { calculateAccountColor } from '../util/AccountColor'
+import { DraggableEnvelopeDirective } from '../directives/drag-and-drop/draggable-envelope'
 
 export default {
 	name: 'Envelope',
 	components: {
-		Actions,
-		ActionButton,
 		Avatar,
+		MenuEnvelope,
 		Moment,
+	},
+	directives: {
+		draggableEnvelope: DraggableEnvelopeDirective,
 	},
 	props: {
 		data: {
@@ -114,6 +107,11 @@ export default {
 			type: Boolean,
 			default: false,
 		},
+		selectedEnvelopes: {
+			type: Array,
+			required: false,
+			default: () => [],
+		},
 	},
 	data() {
 		return {
@@ -122,7 +120,8 @@ export default {
 	},
 	computed: {
 		accountColor() {
-			return calculateAccountColor(this.$store.getters.getAccount(this.data.accountId).emailAddress)
+			const account = this.$store.getters.getAccount(this.data.accountId)
+			return calculateAccountColor(account?.emailAddress ?? '')
 		},
 		draft() {
 			return this.data.flags.draft
@@ -183,31 +182,16 @@ export default {
 		},
 	},
 	methods: {
+		unselect() {
+			if (this.selected) {
+				this.$emit('updated:selected', false)
+			}
+		},
 		toggleSelected() {
 			this.$emit('update:selected', !this.selected)
 		},
-		onToggleFlagged() {
-			this.$store.dispatch('toggleEnvelopeFlagged', this.data)
-		},
-		onToggleImportant() {
-			this.$store.dispatch('toggleEnvelopeImportant', this.data)
-		},
-		onToggleSeen() {
-			this.$store.dispatch('toggleEnvelopeSeen', this.data)
-		},
-		onToggleJunk() {
-			this.$store.dispatch('toggleEnvelopeJunk', this.data)
-		},
-		onDelete() {
-			// Remove from selection first
-			if (this.selected) {
-				this.$emit('update:selected', false)
-			}
-			// Delete
-			this.$emit('delete')
-			this.$store.dispatch('deleteMessage', {
-				id: this.data.databaseId,
-			})
+		onSelectMultiple() {
+			this.$emit('select-multiple')
 		},
 	},
 }

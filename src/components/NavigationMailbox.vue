@@ -24,6 +24,11 @@
 		v-if="visible"
 		:id="genId(mailbox)"
 		:key="genId(mailbox)"
+		v-droppable-mailbox="{
+			mailboxId: mailbox.databaseId,
+			accountId: mailbox.accountId,
+			isValidDropTarget,
+		}"
 		:allow-collapse="true"
 		:menu-open.sync="menuOpen"
 		:force-menu="true"
@@ -54,7 +59,7 @@
 					v-if="!editing && top && !account.isUnified && mailbox.specialRole !== 'flagged'"
 					icon="icon-folder"
 					@click="openCreateMailbox">
-					{{ t('mail', 'Add subfolder') }}
+					{{ t('mail', 'Add submailbox') }}
 				</ActionButton>
 				<ActionInput v-if="editing" icon="icon-folder" @submit.prevent.stop="createMailbox" />
 				<ActionButton
@@ -71,7 +76,13 @@
 				<ActionText v-if="showSaving" icon="icon-loading-small">
 					{{ t('mail', 'Saving') }}
 				</ActionText>
-
+				<ActionButton v-if="!account.isUnified && !mailbox.specialRole && !hasSubMailboxes"
+					:id="genId(mailbox)"
+					icon="icon-external"
+					:close-after-click="true"
+					@click.prevent="onOpenMoveModal">
+					{{ t('mail', 'Move') }}
+				</ActionButton>
 				<ActionButton
 					v-if="debug && !account.isUnified && mailbox.specialRole !== 'flagged'"
 					icon="icon-settings"
@@ -98,14 +109,19 @@
 				</ActionCheckbox>
 
 				<ActionButton v-if="!account.isUnified && !mailbox.specialRole && !hasSubMailboxes" icon="icon-delete" @click="deleteMailbox">
-					{{ t('mail', 'Delete folder') }}
+					{{ t('mail', 'Delete mailbox') }}
 				</ActionButton>
 			</template>
 		</template>
 		<AppNavigationCounter v-if="mailbox.unread" slot="counter">
 			{{ mailbox.unread }}
 		</AppNavigationCounter>
-
+		<template slot="extra">
+			<MoveMailboxModal v-if="showMoveModal"
+				:account="account"
+				:mailbox="mailbox"
+				@close="onCloseMoveModal" />
+		</template>
 		<!-- submailboxes -->
 		<NavigationMailbox
 			v-for="subMailbox in subMailboxes"
@@ -123,6 +139,7 @@ import ActionButton from '@nextcloud/vue/dist/Components/ActionButton'
 import ActionCheckbox from '@nextcloud/vue/dist/Components/ActionCheckbox'
 import ActionInput from '@nextcloud/vue/dist/Components/ActionInput'
 import ActionText from '@nextcloud/vue/dist/Components/ActionText'
+import MoveMailboxModal from './MoveMailboxModal'
 
 import { clearCache } from '../service/MessageService'
 import { getMailboxStatus } from '../service/MailboxService'
@@ -130,6 +147,8 @@ import logger from '../logger'
 import { translatePlural as n } from '@nextcloud/l10n'
 import { translate as translateMailboxName } from '../i18n/MailboxTranslator'
 import { showInfo } from '@nextcloud/dialogs'
+import { DroppableMailboxDirective as droppableMailbox } from '../directives/drag-and-drop/droppable-mailbox'
+import dragEventBus from '../directives/drag-and-drop/util/dragEventBus'
 
 export default {
 	name: 'NavigationMailbox',
@@ -140,6 +159,10 @@ export default {
 		ActionButton,
 		ActionCheckbox,
 		ActionInput,
+		MoveMailboxModal,
+	},
+	directives: {
+		droppableMailbox,
 	},
 	props: {
 		account: {
@@ -175,14 +198,14 @@ export default {
 			renameLabel: true,
 			renameInput: false,
 			mailboxName: this.mailbox.displayName,
-
+			showMoveModal: false,
 		}
 	},
 	computed: {
 		visible() {
 			return (
-				this.account.showSubscribedOnly === false
-				|| (this.mailbox.attributes && this.mailbox.attributes.includes('\\subscribed'))
+				(this.account.showSubscribedOnly === false
+				|| (this.mailbox.attributes && this.mailbox.attributes.includes('\\subscribed'))) && this.isUnifiedButOnlyInbox
 			)
 		},
 		notInbox() {
@@ -248,6 +271,40 @@ export default {
 		isSubscribed() {
 			return this.mailbox.attributes && this.mailbox.attributes.includes('\\subscribed')
 		},
+		isDroppableSpecialMailbox() {
+			if (this.filter === 'starred') {
+				return false
+			}
+			return ![
+				this.account.draftsMailboxId,
+				this.account.sentMailboxId,
+			].includes(this.mailbox.databaseId)
+		},
+		isActive() {
+			return this.$route.params.mailboxId === this.mailbox.databaseId
+		},
+		isValidDropTarget() {
+			if (this.isActive) {
+				return false
+			}
+			return this.isDroppableSpecialMailbox || (!this.mailbox.specialRole && !this.account.isUnified)
+		},
+		isUnifiedButOnlyInbox() {
+			if (!this.mailbox.isUnified) {
+				return true
+			}
+			return this.mailbox.specialUse.includes('inbox') && this.$store.getters.accounts.length > 2
+		},
+	},
+	mounted() {
+		dragEventBus.$on('dragStart', this.onDragStart)
+		dragEventBus.$on('dragEnd', this.onDragEnd)
+		dragEventBus.$on('envelopesMoved', this.onEnvelopesMoved)
+	},
+	beforeDestroy() {
+		dragEventBus.$off('dragStart', this.onDragStart)
+		dragEventBus.$off('dragEnd', this.onDragEnd)
+		dragEventBus.$off('envelopesMoved', this.onEnvelopesMoved)
 	},
 	methods: {
 		/**
@@ -377,11 +434,11 @@ export default {
 			const id = this.mailbox.databaseId
 			logger.info('delete mailbox', { mailbox: this.mailbox })
 			OC.dialogs.confirmDestructive(
-				t('mail', 'The folder and all messages in it will be deleted.'),
-				t('mail', 'Delete folder'),
+				t('mail', 'The mailbox and all messages in it will be deleted.'),
+				t('mail', 'Delete mailbox'),
 				{
 					type: OC.dialogs.YES_NO_BUTTONS,
-					confirm: t('mail', 'Delete folder {name}', { name: this.mailbox.displayName }),
+					confirm: t('mail', 'Delete mailbox {name}', { name: this.mailbox.displayName }),
 					confirmClasses: 'error',
 					cancel: t('mail', 'Cancel'),
 				},
@@ -423,6 +480,44 @@ export default {
 			this.renameLabel = false
 			this.renameInput = true
 			this.showSaving = false
+		},
+		onOpenMoveModal() {
+			this.showMoveModal = true
+		},
+		onCloseMoveModal() {
+			this.showMoveModal = false
+		},
+		onDragStart({ accountId }) {
+			if (accountId !== this.mailbox.accountId) {
+				return
+			}
+			this.$store.commit('expandAccount', accountId)
+			this.showSubMailboxes = true
+		},
+		onDragEnd({ accountId }) {
+			if (accountId !== this.mailbox.accountId) {
+				return
+			}
+			this.showSubMailboxes = false
+		},
+		onEnvelopesMoved({ mailboxId, movedEnvelopes }) {
+			if (this.mailbox.databaseId !== mailboxId) {
+				return
+			}
+			const openedMessageHasBeenMoved = movedEnvelopes.find((movedEnvelope) => {
+				return movedEnvelope.envelopeId === this.$route.params.threadId
+			})
+			// navigate to the mailbox root
+			// if the currently displayed message has been moved
+			if (this.$route.name === 'message' && openedMessageHasBeenMoved) {
+				this.$router.push({
+					name: 'mailbox',
+					params: {
+						mailboxId: this.$route.params.mailboxId,
+						filter: this.$route.params?.filter,
+					},
+				})
+			}
 		},
 	},
 }
